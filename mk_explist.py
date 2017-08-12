@@ -257,24 +257,23 @@ class DBInfo():
         TT = Toolbox()
         # Get the explist
         dfexp = self.exp_info()
-        if False:
-            # Need to query every pair pfw_attempt_id-expnum
-            dfpath = pd.DataFrame()
-            for index, row in dfexp.iterrows():
-                gc.collect()
-                qp = "select im.expnum, im.pfw_attempt_id, fai.path,"
-                qp += "  fai.filename, fai.compression"
-                qp += "  from image im, file_archive_info fai"
-                qp += "  where im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"]) 
-                qp += "  and im.filetype='red_immask'" 
-                qp += "  and im.expnum={0}".format(row["EXPNUM"]) 
-                qp += "  and fai.filename=im.filename"
-                qp += "  order by fai.filename"
-                dfaux = TT.db_query(qp)
-                dfpath = dfpath.append(dfaux)
-            # Save for testing
-            dfpath.to_csv("path.csv", index=False, header=True)
-            #
+        # Need to query every pair pfw_attempt_id-expnum
+        dfpath = pd.DataFrame()
+        for index, row in dfexp.iterrows():
+            gc.collect()
+            qp = "select im.expnum, im.pfw_attempt_id, fai.path,"
+            qp += "  fai.filename, fai.compression"
+            qp += "  from image im, file_archive_info fai"
+            qp += "  where im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"]) 
+            qp += "  and im.filetype='red_immask'" 
+            qp += "  and im.expnum={0}".format(row["EXPNUM"]) 
+            qp += "  and fai.filename=im.filename"
+            qp += "  order by fai.filename"
+            dfaux = TT.db_query(qp)
+            dfpath = dfpath.append(dfaux)
+        # Save for testing
+        # dfpath.to_csv("path.csv", index=False, header=True)
+        #
         #
         dfpath = pd.read_csv("path.csv")
         #
@@ -327,5 +326,5 @@ if __name__ == "__main__":
     print socket.gethostname()
 
     DB = DBInfo(nite=20170201)
-    DB.exp_mask(parent_immask="/Users/fco/Code/diffimg_des/des-diffimg-small")
-    # DB.exp_mask(parent_immask="/home/s1/fpazchin")
+    # DB.exp_mask(parent_immask="/Users/fco/Code/diffimg_des/des-diffimg-small")
+    DB.exp_mask(parent_immask="/home/s1/fpazchin")
