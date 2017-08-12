@@ -13,6 +13,8 @@ import datetime
 import gc
 import logging
 import argparse
+import itertools
+import errno
 import numpy as np
 import pandas as pd
 from astropy.time import Time
@@ -37,6 +39,48 @@ except:
 # =============================
 
 class Toolbox():
+    def to_path(self, parent=None, nite=None, expnum=None, reqnum=None, 
+                attnum=None, fnm=None, modify_fnm=False, str_run=None):
+        """ Method to check for the existence of the destination folder, and
+        to modify the filename used for save files
+        Inputs
+        - parent: root folder, /pnfs/des/persistent/wsdiff/exp/NITE/EXPNUM/
+        - nite: night
+        - expnum
+        - reqnum
+        - attnum
+        - fnm: actual filename of immask files
+        - modify_fnm: whether to change the ReqnumAttnum string on filename
+        Returns
+        - string with the destination path
+        """
+        # Modify filename
+        if modify_fnm:
+            aux = "r{0}p{1:02}".format(reqnum, attnum)
+            fnm = fnm.replace(aux, str_run)
+        # Check if directory exists, if not, then create it
+        folder = os.path.join(parent, "{0}/{1:08}".format(nite, expnum))
+        try:
+            os.makedirs(folder)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+                logging.error("ERROR when creating {0}".format(folder))
+        # Output the string with the final filename
+        return os.path.join(folder, fnm)
+
+    def chunk_N(self, y, size, fill_val=np.nan):
+        """ Method to divide the list or 1D array in chunks of size N
+        Inputs
+        - data: list, tuple, array 1D to be chunked
+        - size_n: number of elements of each chunk
+        Returns
+        - list of tuples containing the elements. When the last tuple has 
+        remaining spaces, fill with fill_val
+        """
+        args = [iter(y)] * size
+        return list(itertools.izip_longest(*args, fillvalue=fill_val))
+
     def isot2mjd(self, isot, time_format="isot", time_scale="utc"):
         """ Method to transform from something like 2015-09-18T07:19:27.935065
         to MJD float. If a list is inputed, a list is returned
@@ -92,6 +136,7 @@ class DBInfo():
         Inputs
         - nite: str or int, consider it as last night, not today
         """
+        self.hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
         if nite is None:
             d1 = datetime.date.today() - datetime.timedelta(days=1)
             d2 = datetime.date.today()
@@ -108,7 +153,7 @@ class DBInfo():
             self.nite2 = d2.strftime("%Y%m%d")
 
     def exp_info(self, minEXPTIME=30, minTEFF_g=0.2, minTEFF_riz=0.3,
-                 outnm=None):
+                 parent_explist=None, outnm=None):
         """ Method to get information from the exposure, related to assessments
         from the firstcut processing and from the initial values coming from
         the telescope.
@@ -132,8 +177,10 @@ class DBInfo():
         qi += "  select e.expnum, e.nite, e.airmass, e.obstype, e.date_obs,"
         qi += "  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg, e.band,"
         qi += "  e.exptime, val.pfw_attempt_id,"
+        qi += "  att.reqnum, att.attnum,"
         qi += "  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness"
-        qi += "  from z, exposure e, firstcut_eval fcut, pfw_attempt_val val"
+        qi += "  from z, exposure e, firstcut_eval fcut, pfw_attempt_val val,"
+        qi += "  pfw_attempt att"
         qi += "  where e.obstype='object'"
         qi += "  and e.exptime>={0}".format(minEXPTIME)
         qi += "  and e.nite between"
@@ -147,17 +194,17 @@ class DBInfo():
         qi += "  and val.key='expnum'"
         qi += "  and to_number(val.val,'999999')=e.expnum"
         qi += "  and val.pfw_attempt_id=fcut.pfw_attempt_id"
+        qi += "  and att.id=val.pfw_attempt_id"
         qi += "  order by e.nite"
+        #
         T = Toolbox()
         df0 = T.db_query(qi)
         # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
         c1 = (df0["BAND"] == "g") & (df0["T_EFF"] < minTEFF_g)
-        print np.any(c1.values)
         if np.any(c1.values):
             df0.drop(c1, inplace=True)
         for b in ["r", "i", "z"]:
             cx = (df0["BAND"] == b) & (df0["T_EFF"] < minTEFF_riz)
-            print np.any(cx.values)
             if np.any(cx.values):
                 df0.drop(cx, inplace=True)
         # Drop rows where T_EFF is NaN
@@ -170,18 +217,115 @@ class DBInfo():
                         inplace=True)
         # Re-index
         df0 = df0.reset_index(drop=True)
+        # Folder to save the explist csv files
+        if parent_explist is None:
+            parent_explist = os.path.join(os.getcwd(), "explist/")
+        try:
+            os.makedirs(parent_explist)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+                logging.error("ERROR when creating {0}".format(parent_explist))
         # Write out the table, one slightly different filename for each 
         # time we query the DB
         if outnm is None:
-            hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
             outnm = "explist_{0}".format(self.nite1)
-            outnm += "_{0}.csv".format(hhmmss)
+            outnm += "_{0}.csv".format(self.hhmmss)
+            outnm = os.path.join(parent_explist, outnm)
         df0.to_csv(outnm, index=False, header=True)
         return df0
 
+    def exp_mask(self, size_copy=25, root_path="/archive_data/desarchive",
+                 parent_immask="/pnfs/des/persistent/wsdiff/exp",
+                 parent_scp=None):
+        """ Method to get the filenames and paths for the red_immask
+        files associated to each CCD, for the previously selected exposures.
+        After that, bash files are written.
+
+        
+        """
+        # Folder to save the bash SCP files
+        if parent_scp is None:
+            parent_scp = os.path.join(os.getcwd(), "bash_scp/")
+        try:
+            os.makedirs(parent_scp)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+                logging.error("ERROR when creating {0}".format(parent_scp))
+        #
+        TT = Toolbox()
+        # Get the explist
+        dfexp = self.exp_info()
+        if False:
+            # Need to query every pair pfw_attempt_id-expnum
+            dfpath = pd.DataFrame()
+            for index, row in dfexp.iterrows():
+                gc.collect()
+                qp = "select im.expnum, im.pfw_attempt_id, fai.path,"
+                qp += "  fai.filename, fai.compression"
+                qp += "  from image im, file_archive_info fai"
+                qp += "  where im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"]) 
+                qp += "  and im.filetype='red_immask'" 
+                qp += "  and im.expnum={0}".format(row["EXPNUM"]) 
+                qp += "  and fai.filename=im.filename"
+                qp += "  order by fai.filename"
+                dfaux = TT.db_query(qp)
+                dfpath = dfpath.append(dfaux)
+            # Save for testing
+            dfpath.to_csv("path.csv", index=False, header=True)
+            #
+        #
+        dfpath = pd.read_csv("path.csv")
+        #
+        # Write bash SCP in packs of N exposures each. chunk_N() returns a
+        # list of tuples
+        expnum = dfexp["EXPNUM"].values
+        Nexp = map(np.array, TT.chunk_N(expnum, size_copy))
+        lineout = ["#!/bin/bash \n"]
+        str0 = "scp fpazch@deslogin.cosmology.illinois.edu:" 
+        for write_exp in Nexp:
+            # Remove the filling NaN
+            write_exp = write_exp[np.logical_not(np.isnan(write_exp))]
+            # Account for possible float 
+            write_exp = np.array(map(int, write_exp))
+            for idx, row in dfpath.iterrows():
+                if row["EXPNUM"] in write_exp:
+                    cond = ((dfexp["EXPNUM"] == row["EXPNUM"]) &
+                            (dfexp["PFW_ATTEMPT_ID"] == row["PFW_ATTEMPT_ID"]))
+                    # Pending: check for unique req, att
+                    req = dfexp.loc[cond, "REQNUM"].values[0]
+                    att = dfexp.loc[cond, "ATTNUM"].values[0]
+                    aux_fnm = row["FILENAME"] + row["COMPRESSION"]
+                    destin = TT.to_path(parent=parent_immask,
+                                        nite=self.nite1,
+                                        expnum=row["EXPNUM"],
+                                        fnm=aux_fnm,
+                                        reqnum=req,
+                                        attnum=att,
+                                        modify_fnm=True,
+                                        str_run="r4p4")
+                    argu = [root_path, row["PATH"], row["FILENAME"]]
+                    tmp = str0
+                    tmp += os.path.join(*argu)
+                    tmp += row["COMPRESSION"] + " "
+                    tmp += destin
+                    tmp += "\n"
+                    lineout.append(tmp)
+            # Write out the chunk files to be copied
+            outfnm = "copy_{0}_{1}t{2}.sh".format(self.nite1, write_exp[0],
+                                                    write_exp[-1])
+            outfnm = os.path.join(parent_scp, outfnm)
+            with open(outfnm, "w+") as f:
+                f.writelines(lineout)
+            logging.info("\twritten bash file {0}".format(outfnm))
+            lineout = ["#!/bin/bash \n"]
+        return True
+            
 
 if __name__ == "__main__":
     print socket.gethostname()
 
     DB = DBInfo(nite=20170201)
-    DB.exp_info()
+    DB.exp_mask(parent_immask="/Users/fco/Code/diffimg_des/des-diffimg-small")
+    # DB.exp_mask(parent_immask="/home/s1/fpazchin")
