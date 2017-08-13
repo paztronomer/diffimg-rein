@@ -264,9 +264,14 @@ class DBInfo():
             df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
         else:
             df0.loc[:, "MJD_OBS_ADD"] = pd.Series(mjd_aux, index=df0.index)
-        # Re-sort for nite and band
-        df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True,
-                        inplace=True)
+        # Pandas sort_values appeared on v 0.17
+        if (float(str(pd.__version__)[:4]) >= 0.17):
+            # Re-sort for nite and band
+            df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True,
+                            inplace=True)
+        else:
+            df0.sort(["NITE", "BAND", "EXPNUM"], ascending=True,
+                     inplace=True)
         # Re-index
         df0 = df0.reset_index(drop=True)
         # Folder to save the explist csv files
