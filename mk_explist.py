@@ -259,7 +259,11 @@ class DBInfo():
         df0.dropna(axis=0, subset=["T_EFF"], inplace=True)
         # Add a new column with a more precise MJD value
         mjd_aux = map(T.isot2mjd, df0["DATE_OBS"])
-        df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
+        # Pandas assign appeared on version 0.16
+        if (float(str(pd.__version__)[:4]) >= 0.16):
+            df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
+        else:
+            df0.loc[:, "MJD_OBS_ADD"] = pd.Series(mjd_aux, index=df0.index)
         # Re-sort for nite and band
         df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True,
                         inplace=True)
