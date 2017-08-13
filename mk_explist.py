@@ -241,7 +241,7 @@ class DBInfo():
         qi += "  and val.pfw_attempt_id=fcut.pfw_attempt_id"
         qi += "  and att.id=val.pfw_attempt_id"
         if self.testing:
-            qi += "  and rownum<51"
+            qi += "  and rownum<6"
         qi += "  order by e.nite"
         #
         T = Toolbox()
@@ -478,7 +478,7 @@ if __name__ == "__main__":
     abc.add_argument("--teff_riz", help=txt10, metavar="", default=teff_riz_aux,
                      type=float)
     #
-    txt11 = "Is this a test run? This flag allows to query only 50 exposures"
+    txt11 = "Is this a test run? This flag allows to query only 5 exposures"
     abc.add_argument("--test", help=txt11, action="store_true")
     # Recover args
     val = abc.parse_args()
