@@ -149,7 +149,7 @@ class Toolbox():
 class DBInfo():
     def __init__(self, username=None, nite=None, exptime=None, Nexpnum=None,
                  dir_bash=None, dir_exp=None, dir_immask=None, prefix=None,
-                 teff_g=None, teff_riz=None):
+                 teff_g=None, teff_riz=None, testing=None):
         """ Method to feed relevant info
         Inputs
         - username: str, user to connect to DESDM
@@ -163,6 +163,7 @@ class DBInfo():
         - prefix: str, prefix to the filename of the explists
         - teff_g, teff_riz: float, minimum values for T_EFF, g-band and
         r, i, z-bands
+        - testing: boolean, if True, the only use 50 exposures
         """
         if nite is None:
             d1 = datetime.date.today() - datetime.timedelta(days=1)
@@ -189,6 +190,7 @@ class DBInfo():
         self.teff_g = teff_g
         self.teff_riz = teff_riz
         self.bash_files = []
+        self.testing = testing
 
     def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
                  parent_explist=None, outnm=None):
@@ -238,6 +240,8 @@ class DBInfo():
         qi += "  and to_number(val.val,'999999')=e.expnum"
         qi += "  and val.pfw_attempt_id=fcut.pfw_attempt_id"
         qi += "  and att.id=val.pfw_attempt_id"
+        if self.testing:
+            qi += "  and rownum<51"
         qi += "  order by e.nite"
         #
         T = Toolbox()
@@ -473,6 +477,9 @@ if __name__ == "__main__":
     txt10 += " Default: {0}".format(teff_riz_aux)
     abc.add_argument("--teff_riz", help=txt10, metavar="", default=teff_riz_aux,
                      type=float)
+    #
+    txt11 = "Is this a test run? This flag allows to query only 50 exposures"
+    abc.add_argument("--test", help=txt11, action="store_true")
     # Recover args
     val = abc.parse_args()
     kw = dict()
@@ -486,6 +493,7 @@ if __name__ == "__main__":
     kw["prefix"] = val.pref
     kw["teff_g"] = val.teff_g
     kw["teff_riz"] = val.teff_riz
+    kw["testing"] = val.test
     #
     # Calling
     DB = DBInfo(**kw)
