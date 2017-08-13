@@ -108,6 +108,7 @@ class Toolbox():
                 df_obj = connect.query_to_pandas(to_query)
             except:
                 logging.error("Error in querying\n\n\t{0}\n\n".format(to_query))
+                exit(1)
             connect.close()
             return df_obj
             # Test if dtype works fine, if not, use zip and construct
