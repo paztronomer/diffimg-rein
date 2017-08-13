@@ -1,7 +1,9 @@
-""" Script to make a list of the new exposures, from the last night (or another).
-The condition is to be already processed by DESDM. As the processing goes through
-the day, this code needs to run managed by a CRON.
-Mind to be respectful with the files transfer, to not get into the processing path.
+""" Script to make a list of the new exposures, from the last night (or 
+another).
+The condition is to be already processed by DESDM. As the processing goes 
+through the day, this code needs to run managed by a CRON.
+Mind to be respectful with the files transfer, to not get into the processing 
+path.
 Francisco Paz-Chinchon
 """
 
@@ -148,8 +150,8 @@ class Toolbox():
 
 class DBInfo():
     def __init__(self, username=None, nite=None, exptime=None, Nexpnum=None,
-                 dir_bash=None, dir_exp=None, dir_immask=None, prefix=None,
-                 teff_g=None, teff_riz=None, testing=None):
+                 dir_bash=None, dir_exp=None, dir_immask=None, dir_log=None,
+                 prefix=None, teff_g=None, teff_riz=None, testing=None):
         """ Method to feed relevant info
         Inputs
         - username: str, user to connect to DESDM
@@ -160,6 +162,7 @@ class DBInfo():
         - dir_bash: str, folder to save the bash files
         - dir_exp: str, folder to save the explist tables
         - dir_immask: str, folder where immask.fits.fz files will be stored
+        - dir_log: str, folder where LOGs will be stored
         - prefix: str, prefix to the filename of the explists
         - teff_g, teff_riz: float, minimum values for T_EFF, g-band and
         r, i, z-bands
@@ -186,11 +189,34 @@ class DBInfo():
         self.dir_bash = dir_bash
         self.dir_exp = dir_exp
         self.dir_immask = dir_immask
+        self.dir_log = dir_log
         self.prefix = prefix
         self.teff_g = teff_g
         self.teff_riz = teff_riz
         self.bash_files = []
         self.testing = testing
+
+    def setup_log(self):
+        """ Method to setup the log output and start with some information
+        """
+        # Check/crete directory
+        if self.dir_log is None:
+            self.dir_log = os.path.join(os.getcwd(), "logs/")
+        try:
+            self.dir_log = os.path.join(self.dir_log, self.nite1)
+            os.makedirs(self.dir_log)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+                logging.error("ERROR when creating {0}".format(self.dir_log))
+        # Setup write out
+        lognm = "explist_and_copy_{0}_{1}.log".format(self.nite1, self.hhmmss)
+        logpath = os.path.join(self.dir_log, lognm)
+        logging.basicConfig(filename=logpath, level=logging.DEBUG, 
+                            format="%(asctime)s - %(levelname)s - %(message)s")
+        # First information
+        logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
+        logging.info("Script: {0}\n".format(os.path.basename(__file__)))
 
     def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
                  parent_explist=None, outnm=None):
@@ -423,8 +449,6 @@ class DBInfo():
 
 
 if __name__ == "__main__":
-    logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
-    logging.info("Script: {0}\n".format(os.path.basename(__file__)))
     # Parse of arguments
     intro = "Script to detect the last night (or other) already processed"
     intro += " exposures, and then create bash executable files for remote"
@@ -464,7 +488,8 @@ if __name__ == "__main__":
     abc.add_argument("--pref", help=txt7, metavar="")
     #
     time_aux = 30.
-    txt8 = "Minimum exposure time for the images. Default: {0}".format(time_aux)
+    txt8 = "Minimum exposure time for the images."
+    txt8 += " Default: {0}".format(time_aux)
     abc.add_argument("--exptime", help=txt8, metavar="", default=time_aux,
                      type=float)
     #
@@ -476,11 +501,15 @@ if __name__ == "__main__":
     teff_riz_aux = 0.3
     txt10 = "Minimum T_EFF for r, i, and z-bands."
     txt10 += " Default: {0}".format(teff_riz_aux)
-    abc.add_argument("--teff_riz", help=txt10, metavar="", default=teff_riz_aux,
-                     type=float)
+    abc.add_argument("--teff_riz", help=txt10, metavar="", 
+                     default=teff_riz_aux, type=float)
     #
     txt11 = "Is this a test run? This flag allows to query only 5 exposures"
     abc.add_argument("--test", help=txt11, action="store_true")
+    #
+    txt12 = "Directory where to store the LOGs. One folder per night."
+    txt12 = " Default: <current_directory>/logs"
+    abc.add_argument("--dir_log", help=txt12, metavar="")
     # Recover args
     val = abc.parse_args()
     kw = dict()
@@ -491,6 +520,7 @@ if __name__ == "__main__":
     kw["dir_bash"] = val.d_bash
     kw["dir_exp"] = val.d_exp
     kw["dir_immask"] = val.d_msk
+    kw["dir_log"] = val.dir_log
     kw["prefix"] = val.pref
     kw["teff_g"] = val.teff_g
     kw["teff_riz"] = val.teff_riz
@@ -498,6 +528,10 @@ if __name__ == "__main__":
     #
     # Calling
     DB = DBInfo(**kw)
+    #Setup log
+    DB.setup_log()
+    # Make queries, save tables and files
     ended_ok = DB.exp_mask()
+    # Remote copy
     if ended_ok:
         DB.run_scp()
