@@ -424,6 +424,7 @@ class DBInfo():
 
 if __name__ == "__main__":
     logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
+    logging.info("Script: {0}\n".format(os.path.basename(__file__)))
     # Parse of arguments
     intro = "Script to detect the last night (or other) already processed"
     intro += " exposures, and then create bash executable files for remote"
