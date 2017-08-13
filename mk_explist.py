@@ -9,11 +9,14 @@ import os
 import sys
 import socket
 import datetime
+import time
 import gc
 import logging
 import argparse
 import itertools
 import errno
+import shlex
+import subprocess
 import numpy as np
 import pandas as pd
 from astropy.time import Time
@@ -36,6 +39,18 @@ except:
 # =============================
 
 class Toolbox():
+    def split_path(self, path):
+        """Method to return the relative root folder (one level upper),
+        given a path.
+        Inputs
+        - path: complete path
+        Returns
+        - 2 strings, one being the parent folder, and the filename
+        """
+        #relat_root = os.path.abspath(os.path.join(path,os.pardir))
+        relroot, filename = os.path.split(path)
+        return (relroot, filename)
+
     def to_path(self, parent=None, nite=None, expnum=None, reqnum=None,
                 attnum=None, fnm=None, modify_fnm=False, str_run=None):
         """ Method to check for the existence of the destination folder, and
@@ -137,7 +152,17 @@ class DBInfo():
                  teff_g=None, teff_riz=None):
         """ Method to feed relevant info
         Inputs
+        - username: str, user to connect to DESDM
         - nite: str or int, consider it as last night, not today
+        - exptime: float, min time in seconds for select exposures
+        - Nexpnum: int, number of exposures to be included in each separate
+        bash file to copy
+        - dir_bash: str, folder to save the bash files
+        - dir_exp: str, folder to save the explist tables
+        - dir_immask: str, folder where immask.fits.fz files will be stored
+        - prefix: str, prefix to the filename of the explists
+        - teff_g, teff_riz: float, minimum values for T_EFF, g-band and
+        r, i, z-bands
         """
         if nite is None:
             d1 = datetime.date.today() - datetime.timedelta(days=1)
@@ -163,6 +188,7 @@ class DBInfo():
         self.prefix = prefix
         self.teff_g = teff_g
         self.teff_riz = teff_riz
+        self.bash_files = []
 
     def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
                  parent_explist=None, outnm=None):
@@ -355,7 +381,31 @@ class DBInfo():
             with open(outfnm, "w+") as f:
                 f.writelines(lineout)
             logging.info("\twritten bash file {0}".format(outfnm))
+            self.bash_files.append(outfnm)
             lineout = ["#!/bin/bash \n"]
+        return True
+
+    def run_scp(self):
+        """ Method to run the created bash files for remote copy
+        """
+        Tbox = Toolbox()
+        if (len(self.bash_files) > 0):
+            for sh in self.bash_files:
+                # Make the file executable
+                root_path, fname= Tbox.split_path(sh)
+                cmd = "chmod +x {0}".format(sh)
+                pA = subprocess.call(shlex.split(cmd))
+                # Run the bash file
+                cmdscp = shlex.split("bash {0}".format(sh))
+                pB = subprocess.Popen(cmdscp,
+                                      shell=False,
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE,
+                                      universal_newlines=True)
+                # outM, errM = pB.communicate()
+                pB.wait()
+                logging.info("Ended run of {0}".format(fname))
         return True
 
 
@@ -430,4 +480,6 @@ if __name__ == "__main__":
     #
     # Calling
     DB = DBInfo(**kw)
-    DB.exp_mask()
+    ended_ok = DB.exp_mask()
+    if ended_ok:
+        DB.run_scp()
