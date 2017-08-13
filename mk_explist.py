@@ -104,7 +104,10 @@ class Toolbox():
             # Needs: to_query
             connect = ea.connect("desoper")
             cursor = connect.cursor()
-            df_obj = connect.query_to_pandas(to_query)
+            try:
+                df_obj = connect.query_to_pandas(to_query)
+            except:
+                logging.error("Error in querying nite={0}".format(self.nite1))
             connect.close()
             return df_obj
             # Test if dtype works fine, if not, use zip and construct
