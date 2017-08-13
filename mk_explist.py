@@ -1,14 +1,13 @@
-""" Script to make a list of the new exposures, from the last night (or another). 
+""" Script to make a list of the new exposures, from the last night (or another).
 The condition is to be already processed by DESDM. As the processing goes through
 the day, this code needs to run managed by a CRON.
-Mind to be respectful with the files transfer, to not get into the processing path. 
+Mind to be respectful with the files transfer, to not get into the processing path.
 Francisco Paz-Chinchon
 """
 
 import os
 import sys
 import socket
-import time
 import datetime
 import gc
 import logging
@@ -32,14 +31,12 @@ except:
 
 # =============================
 # PENDINGS
-# - make scp script for transfer
-# - divide in chunks
 # - keep a log
 # - write a supra code to manage it
 # =============================
 
 class Toolbox():
-    def to_path(self, parent=None, nite=None, expnum=None, reqnum=None, 
+    def to_path(self, parent=None, nite=None, expnum=None, reqnum=None,
                 attnum=None, fnm=None, modify_fnm=False, str_run=None):
         """ Method to check for the existence of the destination folder, and
         to modify the filename used for save files
@@ -75,7 +72,7 @@ class Toolbox():
         - data: list, tuple, array 1D to be chunked
         - size_n: number of elements of each chunk
         Returns
-        - list of tuples containing the elements. When the last tuple has 
+        - list of tuples containing the elements. When the last tuple has
         remaining spaces, fill with fill_val
         """
         args = [iter(y)] * size
@@ -95,9 +92,9 @@ class Toolbox():
         return aux_t
 
     def db_query(self, to_query, outdtype=None):
-        """ Method to query the DB 
+        """ Method to query the DB
         Inputs
-        - to_query: str, contains the query. Do it changes the final SEMICOLON 
+        - to_query: str, contains the query. Do it changes the final SEMICOLON
         from easyaccess to desdbi?
         Returns
         - structured array
@@ -110,7 +107,7 @@ class Toolbox():
             df_obj = connect.query_to_pandas(to_query)
             connect.close()
             return df_obj
-            # Test if dtype works fine, if not, use zip and construct 
+            # Test if dtype works fine, if not, use zip and construct
             # the structured array scratch
             # return df_obj.to_records(index=False)
         else:
@@ -131,12 +128,13 @@ class Toolbox():
 
 
 class DBInfo():
-    def __init__(self, nite=None):
+    def __init__(self, username=None, nite=None, exptime=None, Nexpnum=None,
+                 dir_bash=None, dir_exp=None, dir_immask=None, prefix=None,
+                 teff_g=None, teff_riz=None):
         """ Method to feed relevant info
         Inputs
         - nite: str or int, consider it as last night, not today
         """
-        self.hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
         if nite is None:
             d1 = datetime.date.today() - datetime.timedelta(days=1)
             d2 = datetime.date.today()
@@ -147,12 +145,22 @@ class DBInfo():
                 pass
             else:
                 nite = str(nite)
-            d1 = datetime.datetime.strptime(nite, "%Y%m%d") 
+            d1 = datetime.datetime.strptime(nite, "%Y%m%d")
             d2 = d1 + datetime.timedelta(days=1)
             self.nite1 = d1.strftime("%Y%m%d")
             self.nite2 = d2.strftime("%Y%m%d")
+        self.hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
+        self.username = username
+        self.exptime = exptime
+        self.Nexpnum = Nexpnum
+        self.dir_bash = dir_bash
+        self.dir_exp = dir_exp
+        self.dir_immask = dir_immask
+        self.prefix = prefix
+        self.teff_g = teff_g
+        self.teff_riz = teff_riz
 
-    def exp_info(self, minEXPTIME=30, minTEFF_g=0.2, minTEFF_riz=0.3,
+    def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
                  parent_explist=None, outnm=None):
         """ Method to get information from the exposure, related to assessments
         from the firstcut processing and from the initial values coming from
@@ -167,6 +175,11 @@ class DBInfo():
         Returns
         - the constructed dataframe
         """
+        minEXPTIME = self.exptime
+        minTEFF_g = self.teff_g
+        minTEFF_riz = self.teff_riz
+        parent_explist = self.dir_exp
+        outnm = self.prefix
         # Define the query which assumes last try to process as the valid
         qi = "with z as ("
         qi += "  select fcut.expnum, max(fcut.lastchanged_time) as evaltime"
@@ -199,6 +212,11 @@ class DBInfo():
         #
         T = Toolbox()
         df0 = T.db_query(qi)
+        if (len(df0.index) == 0):
+            noexp = "\tNo exposures were found for nite={0}".format(self.nite1)
+            noexp += "\n\tExiting\n{0}".format("="*80)
+            logging.warning(noexp)
+            exit(0)
         # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
         c1 = (df0["BAND"] == "g") & (df0["T_EFF"] < minTEFF_g)
         if np.any(c1.values):
@@ -210,10 +228,10 @@ class DBInfo():
         # Drop rows where T_EFF is NaN
         df0.dropna(axis=0, subset=["T_EFF"], inplace=True)
         # Add a new column with a more precise MJD value
-        mjd_aux = map(T.isot2mjd, df0["DATE_OBS"])  
+        mjd_aux = map(T.isot2mjd, df0["DATE_OBS"])
         df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
         # Re-sort for nite and band
-        df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True, 
+        df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True,
                         inplace=True)
         # Re-index
         df0 = df0.reset_index(drop=True)
@@ -221,38 +239,45 @@ class DBInfo():
         if parent_explist is None:
             parent_explist = os.path.join(os.getcwd(), "explist/")
         try:
+            parent_explist = os.path.join(parent_explist, self.nite1)
             os.makedirs(parent_explist)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
                 logging.error("ERROR when creating {0}".format(parent_explist))
-        # Write out the table, one slightly different filename for each 
+        # Write out the table, one slightly different filename for each
         # time we query the DB
         if outnm is None:
             outnm = "explist_{0}".format(self.nite1)
             outnm += "_{0}.csv".format(self.hhmmss)
-            outnm = os.path.join(parent_explist, outnm)
+        else:
+            outnm += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+        outnm = os.path.join(parent_explist, outnm)
         df0.to_csv(outnm, index=False, header=True)
         return df0
 
-    def exp_mask(self, size_copy=25, root_path="/archive_data/desarchive",
-                 parent_immask="/pnfs/des/persistent/wsdiff/exp",
-                 parent_scp=None):
+    def exp_mask(self, size_copy=None, root_path="/archive_data/desarchive",
+                 parent_immask=None, parent_scp=None, desdm_user=None):
         """ Method to get the filenames and paths for the red_immask
         files associated to each CCD, for the previously selected exposures.
         After that, bash files are written.
-
-        
+        Inputs
+        - size_copy: integer, number of EXPNUM to be used for transfer on each
+        bash files
+        - root_path: string, parent root path to the DESDM files
+        - parent_immask: string, parent root onf Fermi where immask files will
+        be stored
+        - parent_scp: string, parent folder where bash files for SCP will be
+        saved
+        - desdm_user: user on the DESDM side, which will access the files.  If
+        user is None, get the one in the session
+        Outputs
+        - boolean when end
         """
-        # Folder to save the bash SCP files
-        if parent_scp is None:
-            parent_scp = os.path.join(os.getcwd(), "bash_scp/")
-        try:
-            os.makedirs(parent_scp)
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
-                logging.error("ERROR when creating {0}".format(parent_scp))
+        size_copy = self.Nexpnum
+        parent_immask = self.dir_immask
+        parent_scp =self.dir_bash
+        desdm_user = self.username
         #
         TT = Toolbox()
         # Get the explist
@@ -264,29 +289,37 @@ class DBInfo():
             qp = "select im.expnum, im.pfw_attempt_id, fai.path,"
             qp += "  fai.filename, fai.compression"
             qp += "  from image im, file_archive_info fai"
-            qp += "  where im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"]) 
-            qp += "  and im.filetype='red_immask'" 
-            qp += "  and im.expnum={0}".format(row["EXPNUM"]) 
+            qp += "  where im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"])
+            qp += "  and im.filetype='red_immask'"
+            qp += "  and im.expnum={0}".format(row["EXPNUM"])
             qp += "  and fai.filename=im.filename"
             qp += "  order by fai.filename"
             dfaux = TT.db_query(qp)
             dfpath = dfpath.append(dfaux)
         # Save for testing
         # dfpath.to_csv("path.csv", index=False, header=True)
+        # dfpath = pd.read_csv("path.csv")
         #
-        #
-        dfpath = pd.read_csv("path.csv")
-        #
+        # Folder to save the bash SCP files
+        if parent_scp is None:
+            parent_scp = os.path.join(os.getcwd(), "bash_scp/")
+        try:
+            parent_scp = os.path.join(parent_scp, self.nite1)
+            os.makedirs(parent_scp)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+                logging.error("ERROR when creating {0}".format(parent_scp))
         # Write bash SCP in packs of N exposures each. chunk_N() returns a
         # list of tuples
         expnum = dfexp["EXPNUM"].values
         Nexp = map(np.array, TT.chunk_N(expnum, size_copy))
         lineout = ["#!/bin/bash \n"]
-        str0 = "scp fpazch@deslogin.cosmology.illinois.edu:" 
+        str0 = "scp {0}@deslogin.cosmology.illinois.edu:".format(desdm_user)
         for write_exp in Nexp:
             # Remove the filling NaN
             write_exp = write_exp[np.logical_not(np.isnan(write_exp))]
-            # Account for possible float 
+            # Account for possible float
             write_exp = np.array(map(int, write_exp))
             for idx, row in dfpath.iterrows():
                 if row["EXPNUM"] in write_exp:
@@ -320,11 +353,77 @@ class DBInfo():
             logging.info("\twritten bash file {0}".format(outfnm))
             lineout = ["#!/bin/bash \n"]
         return True
-            
+
 
 if __name__ == "__main__":
-    print socket.gethostname()
-
-    DB = DBInfo(nite=20170201)
-    # DB.exp_mask(parent_immask="/Users/fco/Code/diffimg_des/des-diffimg-small")
-    DB.exp_mask(parent_immask="/home/s1/fpazchin")
+    logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
+    # Parse of arguments
+    intro = "Script to detect the last night (or other) already processed"
+    intro += " exposures, and then create bash executable files for remote"
+    intro += " copy."
+    abc = argparse.ArgumentParser(description=intro)
+    # Optional
+    txt1 = "Night to be queried"
+    abc.add_argument("--nite", help=txt1, metavar="")
+    #
+    immask_aux = "/pnfs/des/persistent/wsdiff/exp"
+    txt2 = "Parent folder to harbor immask files per CCD."
+    txt2 += " Default: {0}".format(immask_aux)
+    abc.add_argument("--d_msk", help=txt2, metavar="", default=immask_aux)
+    #
+    txt3 = "Parent folder to harbor the exposure lists (various files)."
+    txt3 += " Each night has a different folder."
+    txt3 += " Default: <current_folder>/explist/"
+    abc.add_argument("--d_exp", help=txt3, metavar="")
+    #
+    txt4 = "Parent folder to harbor the bash files for remote copy."
+    txt4 += " Each night in its own folder"
+    txt4 += " Default: <current_folder>/bash_scp/"
+    abc.add_argument("--d_bash", help=txt4, metavar="")
+    #
+    txt5 = "Number of exposures to be included in each bash file to be copied."
+    txt5 += " Default: 25"
+    abc.add_argument("--N", help=txt5, metavar="", default=25, type=int)
+    #
+    user_aux = os.getlogin()
+    txt6 = "Username to be employed for connect to DESDM."
+    txt6 += " Default: actual username, {0}".format(user_aux)
+    abc.add_argument("--user", help=txt6, metavar="", default=user_aux)
+    #
+    txt7 = "Prefix to be used on the written exposure lists. The default is"
+    txt7 += " explist, so the final names are explist_<nite>_<hh:mm:ss>.csv"
+    txt7 += " where hh:mm:ss is the time at which the query was saved"
+    abc.add_argument("--pref", help=txt7, metavar="")
+    #
+    time_aux = 30.
+    txt8 = "Minimum exposure time for the images. Default: {0}".format(time_aux)
+    abc.add_argument("--exptime", help=txt8, metavar="", default=time_aux,
+                     type=float)
+    #
+    teff_g_aux = 0.2
+    txt9 = "Minimum T_EFF for g-band. Default: {0}".format(teff_g_aux)
+    abc.add_argument("--teff_g", help=txt9, metavar="", default=teff_g_aux,
+                     type=float)
+    #
+    teff_riz_aux = 0.3
+    txt10 = "Minimum T_EFF for r, i, and z-bands."
+    txt10 += " Default: {0}".format(teff_riz_aux)
+    abc.add_argument("--teff_riz", help=txt10, metavar="", default=teff_riz_aux,
+                     type=float)
+    # Recover args
+    val = abc.parse_args()
+    kw = dict()
+    kw["username"] = val.user
+    kw["nite"] = val.nite
+    kw["exptime"] = val.exptime
+    kw["Nexpnum"] = val.N
+    kw["dir_bash"] = val.d_bash
+    kw["dir_exp"] = val.d_exp
+    kw["dir_immask"] = val.d_msk
+    kw["prefix"] = val.pref
+    kw["teff_g"] = val.teff_g
+    kw["teff_riz"] = val.teff_riz
+    #
+    # Calling
+    DB = DBInfo(**kw)
+    DB.exp_mask()
