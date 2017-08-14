@@ -76,7 +76,7 @@ class Toolbox():
         folder = os.path.join(parent, "{0}/{1:08}".format(nite, expnum))
         try:
             os.makedirs(folder)
-        except OSError as exception:
+        except (OSError as exception):
             if exception.errno != errno.EEXIST:
                 raise
                 logging.error("ERROR when creating {0}".format(folder))
@@ -193,20 +193,22 @@ class DBInfo():
         self.prefix = prefix
         self.teff_g = teff_g
         self.teff_riz = teff_riz
-        self.bash_files = []
         self.testing = testing
+        # Lists to keep track of the bash files and of the copied immask.fits
+        self.bash_files = []
+        self.immask_files = []
 
     def setup_log(self):
         """ Method to setup the log output and start with some information
         """
         # Check/crete directory
-        if self.dir_log is None:
+        if (self.dir_log is None):
             self.dir_log = os.path.join(os.getcwd(), "logs/")
         try:
             self.dir_log = os.path.join(self.dir_log, self.nite1)
             os.makedirs(self.dir_log)
         except OSError as exception:
-            if exception.errno != errno.EEXIST:
+            if (exception.errno != errno.EEXIST):
                 raise
                 logging.error("ERROR when creating {0}".format(self.dir_log))
         # Setup write out
@@ -305,18 +307,18 @@ class DBInfo():
         # Re-index
         df0 = df0.reset_index(drop=True)
         # Folder to save the explist csv files
-        if parent_explist is None:
+        if (parent_explist is None):
             parent_explist = os.path.join(os.getcwd(), "explist/")
         try:
             parent_explist = os.path.join(parent_explist, self.nite1)
             os.makedirs(parent_explist)
         except OSError as exception:
-            if exception.errno != errno.EEXIST:
+            if (exception.errno != errno.EEXIST):
                 raise
                 logging.error("ERROR when creating {0}".format(parent_explist))
         # Write out the table, one slightly different filename for each
         # time we query the DB
-        if outnm is None:
+        if (outnm is None):
             outnm = "explist_{0}".format(self.nite1)
             outnm += "_{0}.csv".format(self.hhmmss)
         else:
@@ -370,13 +372,13 @@ class DBInfo():
         # dfpath = pd.read_csv("path.csv")
         #
         # Folder to save the bash SCP files
-        if parent_scp is None:
+        if (parent_scp is None):
             parent_scp = os.path.join(os.getcwd(), "bash_scp/")
         try:
             parent_scp = os.path.join(parent_scp, self.nite1)
             os.makedirs(parent_scp)
         except OSError as exception:
-            if exception.errno != errno.EEXIST:
+            if (exception.errno != errno.EEXIST):
                 raise
                 logging.error("ERROR when creating {0}".format(parent_scp))
         # Write bash SCP in packs of N exposures each. chunk_N() returns a
@@ -391,13 +393,16 @@ class DBInfo():
             # Account for possible float
             write_exp = np.array(map(int, write_exp))
             for idx, row in dfpath.iterrows():
-                if row["EXPNUM"] in write_exp:
+                if (row["EXPNUM"] in write_exp):
                     cond = ((dfexp["EXPNUM"] == row["EXPNUM"]) &
                             (dfexp["PFW_ATTEMPT_ID"] == row["PFW_ATTEMPT_ID"]))
                     # Pending: check for unique req, att
                     req = dfexp.loc[cond, "REQNUM"].values[0]
                     att = dfexp.loc[cond, "ATTNUM"].values[0]
                     aux_fnm = row["FILENAME"] + row["COMPRESSION"]
+                    #
+                    # Here the the change of immask filename is done
+                    #
                     destin = TT.to_path(parent=parent_immask,
                                         nite=self.nite1,
                                         expnum=row["EXPNUM"],
@@ -413,6 +418,8 @@ class DBInfo():
                     tmp += destin
                     tmp += "\n"
                     lineout.append(tmp)
+                    # Store the immask file entire path
+                    self.immask_files.append(destin)
             # Write out the chunk files to be copied
             outfnm = "copy_{0}_{1}t{2}.sh".format(self.nite1, write_exp[0],
                                                     write_exp[-1])
