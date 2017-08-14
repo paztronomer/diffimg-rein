@@ -151,7 +151,7 @@ if __name__=="__main__":
     # Calling deletion of tmp list sved in case of failure
     #
     # If all went ok, delete the backup file of the immask full paths
-    subprocess.call(shlex.split("rm -v {0}".format(backup_list)), shell=True)
+    os.remove(backup_list)
     logging.info("File {0} was deleted".format(backup_list))
 
     # Final message
