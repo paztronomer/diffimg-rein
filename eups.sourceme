@@ -1,0 +1,12 @@
+#!/bin/bash
+
+source /cvmfs/des.opensciencegrid.org/eeups/startupcachejob21i.sh
+setup -v firstcut Y5Ndev+3
+setup -v easyaccess
+setup -v pandas 0.15.2+5
+setup -v astropy
+setup -v numpy 1.9.1+11
+setup -v python 2.7.9+1
+
+kx509
+voms-proxy-init -rfc -noregen -voms des:/des/Role=DESGW
