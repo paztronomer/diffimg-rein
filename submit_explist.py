@@ -67,8 +67,8 @@ class Work():
             msg1 += " N={0} of {1}".format(idx + 1, len(self.im_path))
             logging.info(msg1)
             #
-            # cmdA = "./DAGMaker.sh {0:08}".format(expnum)
-            cmdA = "./DAGMaker.sh {0}".format(fname)
+            cmdA = "./DAGMaker.sh {0:08}".format(expnum)
+            # cmdA = "./DAGMaker.sh {0}".format(fname)
             cmdA += " > logs/DAGMaker_{0:08}.log 2>&1".format(expnum)
             logging.info("Running: {0}".format(cmdA))
             cmdA = shlex.split(cmdA)
