@@ -20,6 +20,7 @@ voms-proxy-init -rfc -noregen -voms des:/des/Role=DESGW
 """
 
 import os
+import time
 import logging
 import argparse
 import subprocess
