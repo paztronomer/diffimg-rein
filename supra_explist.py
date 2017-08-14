@@ -24,6 +24,7 @@ import time
 import logging
 import argparse
 import subprocess
+import shlex
 # my modules
 import mk_explist
 import submit_explist
