@@ -76,7 +76,7 @@ class Toolbox():
         folder = os.path.join(parent, "{0}/{1:08}".format(nite, expnum))
         try:
             os.makedirs(folder)
-        except (OSError as exception):
+        except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
                 logging.error("ERROR when creating {0}".format(folder))
