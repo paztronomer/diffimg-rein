@@ -134,6 +134,7 @@ if __name__=="__main__":
         for im in DB.immask_files:
             b.write("{0}\n".format(im))
     # 
+    kwin = dict()
     kwin["dir_log"] = val.dir_log
     kwin["nite"] = DB.nite1
     kwin["im_list"] = DB.immask_files
