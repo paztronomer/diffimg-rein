@@ -1,8 +1,8 @@
-""" Script to make a list of the new exposures, from the last night (or 
+""" Script to make a list of the new exposures, from the last night (or
 another).
-The condition is to be already processed by DESDM. As the processing goes 
+The condition is to be already processed by DESDM. As the processing goes
 through the day, this code needs to run managed by a CRON.
-Mind to be respectful with the files transfer, to not get into the processing 
+Mind to be respectful with the files transfer, to not get into the processing
 path.
 Francisco Paz-Chinchon
 """
@@ -36,7 +36,7 @@ except:
 
 # =============================
 # PENDINGS
-# - keep a log
+# - keep a log of processed files
 # - write a supra code to manage it
 # =============================
 
@@ -214,7 +214,7 @@ class DBInfo():
         # Setup write out
         lognm = "explist_and_copy_{0}_{1}.log".format(self.nite1, self.hhmmss)
         logpath = os.path.join(self.dir_log, lognm)
-        logging.basicConfig(filename=logpath, level=logging.DEBUG, 
+        logging.basicConfig(filename=logpath, level=logging.DEBUG,
                             format="%(asctime)s - %(levelname)s - %(message)s")
         # First information
         logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
@@ -353,6 +353,34 @@ class DBInfo():
         TT = Toolbox()
         # Get the explist
         dfexp = self.exp_info()
+        # Here check for which pairs of pfw_attempt_id-expnum has been already
+        # saved in the BASH scp scripts from previous runs
+        # Important: here a strong assumption is made, if an exposure has
+        # been successfully processed, then all their CCDs has been successful
+        # Check all previously saved tables for the night we're working, and
+        # then continue with only the ones that are new
+        #
+        # Iterate over the folder harboring the tables from the past queries.
+        # Construct a tmp dataframe to compare against
+        dir_depth = 0
+        dfcomp = pd.DataFrame()
+        for root, dirs, files in os.walk(parent_explist):
+            if root.count(os.sep) >= dir_depth:
+                del dirs[:]
+            for fnm in files:
+                if (str(self.nite1) in fnm):
+                    try:
+                        tmp = pd.read_csv()
+                        dfcomp = dfcomp.append(dfcomp)
+                    except:
+                        msg = "Cannot load {0}".format(fnm)
+                        logging.error()
+        # Compare dfexp with dfcomp and if there are new entries, continue. if
+        # not, the stop and exit
+
+        HERE!
+
+
         # Need to query every pair pfw_attempt_id-expnum
         dfpath = pd.DataFrame()
         for index, row in dfexp.iterrows():
@@ -508,7 +536,7 @@ if __name__ == "__main__":
     teff_riz_aux = 0.3
     txt10 = "Minimum T_EFF for r, i, and z-bands."
     txt10 += " Default: {0}".format(teff_riz_aux)
-    abc.add_argument("--teff_riz", help=txt10, metavar="", 
+    abc.add_argument("--teff_riz", help=txt10, metavar="",
                      default=teff_riz_aux, type=float)
     #
     txt11 = "Is this a test run? This flag allows to query only 5 exposures"
