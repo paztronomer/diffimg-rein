@@ -1,3 +1,0 @@
-Put loopsubmit.sh inside diffimg-proc/ and run 
-> source setup.sh
-> loopsubmit.sh myexplist
