@@ -19,6 +19,7 @@ import itertools
 import errno
 import shlex
 import subprocess
+import collections
 import numpy as np
 import pandas as pd
 from astropy.time import Time
@@ -197,6 +198,7 @@ class DBInfo():
         # Lists to keep track of the bash files and of the copied immask.fits
         self.bash_files = []
         self.immask_files = []
+        self.aux_parent_explist = None
 
     def setup_log(self):
         """ Method to setup the log output and start with some information
@@ -318,6 +320,8 @@ class DBInfo():
             if (exception.errno != errno.EEXIST):
                 raise
                 logging.error("ERROR when creating {0}".format(parent_explist))
+        # Store parent_explist for later
+        self.aux_parent_explist = parent_explist
         # Write out the table, one slightly different filename for each
         # time we query the DB
         if (outnm is None):
@@ -366,7 +370,7 @@ class DBInfo():
         # Construct a tmp dataframe to compare against
         dir_depth = 0
         dfcomp = pd.DataFrame()
-        for root, dirs, files in os.walk(parent_explist):
+        for root, dirs, files in os.walk(self.aux_parent_explist):
             if root.count(os.sep) >= dir_depth:
                 del dirs[:]
             for fnm in files:
@@ -380,24 +384,33 @@ class DBInfo():
                         logging.error(msg)
         # Compare dfexp with dfcomp and if there are new entries, continue. if
         # not, then stop and exit
-        df_tmp = pd.concat([dfexp, dfcomp])
-        df_tmp = df_tmp.reset_index(drop=True)
-        try:
-            # Group both dataframes
-            df_gpby = df_tmp.groupby(list(df_tmp.columns))
-            # Get the indices of non repeated rows
-            idx = [x[0] for x in df_gpby.groups.values() if len(x) == 1]
-            # Reindex the auxiliary dataframe
-            df_tmp = df_tmp.reindex(idx)
-            if (len(df_tmp.index) == 0):
-                logging.warning("No new entries. Exiting")
-                exit(0)
-            else:
-                # Replace the dataframe used for generate bash 
-                dfexp = df_tmp
-        except:
-            # If something went wrong with the indexing, maybe is zero-size
-            pass
+        #
+        # There is no need to concatenate [dfexp, dfcomp] because dfexp was
+        # already written on disk, so its already inside dfcomp
+        df_tmp = dfcomp.reset_index(drop=True)
+        dfcomp = None
+        # EUPS has only up to pandas 0.15, then I cant use drop_duplicates
+        # with keep=False
+        # Therefore, use a new method
+        counter = collections.Counter(df_tmp["EXPNUM"].values)
+        uni_exp = np.unique(df_tmp["EXPNUM"].values)
+        new_exp = []
+        for e in uni_exp:
+            if (counter[e] == 1):
+                new_exp.append(e)
+        if (len(new_exp) > 0):
+            # Replace dataframe by the one containing only new entries
+            dfexp = None
+            dfexp = df_tmp[df_tmp.EXPNUM.isin(new_exp)]
+            dfexp = dfexp.reset_index(drop=True)
+        else:
+            dfexp = None
+            msg_nonew = "No new exposures at this time, compared with"
+            msg_nonew += " previous queries. Exiting"
+            print "No new data. Exiting!"
+            logging.warning(msg_nonew)
+            exit(0)
+            # Keep the above exit(0)
         # The above allows us to get the unique elements and thus use them in 
         # the generation of bash files 
         #
