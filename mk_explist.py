@@ -227,6 +227,8 @@ class DBInfo():
         the telescope.
         The table results will be saves as *.csv. But remember! there are gonna
         be multiple tables per day, so make filename meaningful
+        Important: each time the query is performed, it saves cummulative 
+        results, so each time is bigger 
         Inputs
         - minEXPTIME: minimum exposure time
         - minTEFF_g: minimum value of T_EFF for g-band
@@ -368,19 +370,37 @@ class DBInfo():
             if root.count(os.sep) >= dir_depth:
                 del dirs[:]
             for fnm in files:
-                if (str(self.nite1) in fnm):
+                if ("explist_{0}".format(self.nite1) in fnm):
                     try:
-                        tmp = pd.read_csv()
-                        dfcomp = dfcomp.append(dfcomp)
+                        aux_fnm = os.path.join(root, fnm)
+                        tmp = pd.read_csv(aux_fnm, engine="python")
+                        dfcomp = dfcomp.append(tmp)
                     except:
                         msg = "Cannot load {0}".format(fnm)
-                        logging.error()
+                        logging.error(msg)
         # Compare dfexp with dfcomp and if there are new entries, continue. if
-        # not, the stop and exit
-
-        HERE!
-
-
+        # not, then stop and exit
+        df_tmp = pd.concat([dfexp, dfcomp])
+        df_tmp = df_tmp.reset_index(drop=True)
+        try:
+            # Group both dataframes
+            df_gpby = df_tmp.groupby(list(df_tmp.columns))
+            # Get the indices of non repeated rows
+            idx = [x[0] for x in df_gpby.groups.values() if len(x) == 1]
+            # Reindex the auxiliary dataframe
+            df_tmp = df_tmp.reindex(idx)
+            if (len(df_tmp.index) == 0):
+                logging.warning("No new entries. Exiting")
+                exit(0)
+            else:
+                # Replace the dataframe used for generate bash 
+                dfexp = df_tmp
+        except:
+            # If something went wrong with the indexing, maybe is zero-size
+            pass
+        # The above allows us to get the unique elements and thus use them in 
+        # the generation of bash files 
+        #
         # Need to query every pair pfw_attempt_id-expnum
         dfpath = pd.DataFrame()
         for index, row in dfexp.iterrows():
