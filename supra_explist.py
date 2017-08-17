@@ -95,7 +95,7 @@ if __name__=="__main__":
     #
     txt12 = "Directory where to store the LOGs. One folder per night."
     txt12 = " Default: <current_directory>/logs"
-    abc.add_argument("--dir_log", help=txt12, metavar="")
+    abc.add_argument("--d_log", help=txt12, metavar="")
     # Recover args
     val = abc.parse_args()
     kw = dict()
@@ -106,7 +106,7 @@ if __name__=="__main__":
     kw["dir_bash"] = val.d_bash
     kw["dir_exp"] = val.d_exp
     kw["dir_immask"] = val.d_msk
-    kw["dir_log"] = val.dir_log
+    kw["dir_log"] = val.d_log
     kw["prefix"] = val.pref
     kw["teff_g"] = val.teff_g
     kw["teff_riz"] = val.teff_riz

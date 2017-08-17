@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # Optional
     txt1 = "Directory where to store the LOGs. One folder per night."
     txt1 += " Default: <current_directory>/logs"
-    abc.add_argument("--dir_log", help=txt1, metavar="")
+    abc.add_argument("--d_log", help=txt1, metavar="")
     #
     txt2 = "Night of observing to which the current images belongs."
     txt2 += " Default: last night"
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     val = abc.parse_args()
     kw = dict()
     kw["im_table"] = val.tab_exp
-    kw["dir_log"] = val.dir_log
+    kw["dir_log"] = val.d_log
     kw["nite"] = val.nite
     #
     W = Work(**kw)

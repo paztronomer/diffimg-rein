@@ -9,6 +9,7 @@ Francisco Paz-Chinchon
 
 import os
 import sys
+import shutil
 import socket
 import datetime
 import time
@@ -191,7 +192,10 @@ class DBInfo():
         self.dir_exp = dir_exp
         self.dir_immask = dir_immask
         self.dir_log = dir_log
-        self.prefix = prefix
+        if (prefix is None):
+            self.prefix = "explist"
+        else:
+            self.prefix = prefix
         self.teff_g = teff_g
         self.teff_riz = teff_riz
         self.testing = testing
@@ -324,11 +328,8 @@ class DBInfo():
         self.aux_parent_explist = parent_explist
         # Write out the table, one slightly different filename for each
         # time we query the DB
-        if (outnm is None):
-            outnm = "explist_{0}".format(self.nite1)
-            outnm += "_{0}.csv".format(self.hhmmss)
-        else:
-            outnm += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+        # The condition for prefix=None is now on the __init__
+        outnm += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
         outnm = os.path.join(parent_explist, outnm)
         df0.to_csv(outnm, index=False, header=True)
         return df0
@@ -370,11 +371,23 @@ class DBInfo():
         # Construct a tmp dataframe to compare against
         dir_depth = 0
         dfcomp = pd.DataFrame()
+        counter_files = 0
         for root, dirs, files in os.walk(self.aux_parent_explist):
             if root.count(os.sep) >= dir_depth:
                 del dirs[:]
             for fnm in files:
-                if ("explist_{0}".format(self.nite1) in fnm):
+                if ("{0}_{1}".format(self.prefix, self.nite1) in fnm):
+                    counter_files += 1
+                    # If there is only one file then copy it to a new filename
+                    if (counter_files == 1):
+                        newaux = "newdata_{0}".format(self.nite1)
+                        newaux += "_{0}.csv".format(self.hhmmss)
+                        newaux = os.path.join(root, newaux)
+                        orig = os.path.join(root, fnm)
+                        shutil.copy2(orig, newaux)
+                        logging.info("Saving newdata: {0}".format(newaux))
+                        # copy2 preserves metadata
+                        #
                     try:
                         aux_fnm = os.path.join(root, fnm)
                         tmp = pd.read_csv(aux_fnm, engine="python")
@@ -389,7 +402,7 @@ class DBInfo():
         # already written on disk, so its already inside dfcomp
         df_tmp = dfcomp.reset_index(drop=True)
         dfcomp = None
-        # EUPS has only up to pandas 0.15, then I cant use drop_duplicates
+        # EUPS has only up to pandas 0.15, then I can not use drop_duplicates
         # with keep=False
         # Therefore, use a new method
         counter = collections.Counter(df_tmp["EXPNUM"].values)
@@ -403,6 +416,12 @@ class DBInfo():
             dfexp = None
             dfexp = df_tmp[df_tmp.EXPNUM.isin(new_exp)]
             dfexp = dfexp.reset_index(drop=True)
+            # Save this because is containing ONLY new data
+            # The first table to be saved was about 35 lines above
+            newdt = "newdata_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+            newdt = os.path.join(self.aux_parent_explist, newdt)
+            dfexp.to_csv(newdt, index=False, header=True)
+            logging.info("Saving newdata: {0}".format(newdt))
         else:
             dfexp = None
             msg_nonew = "No new exposures at this time, compared with"
@@ -428,9 +447,6 @@ class DBInfo():
             qp += "  order by fai.filename"
             dfaux = TT.db_query(qp)
             dfpath = dfpath.append(dfaux)
-        # Save for testing
-        # dfpath.to_csv("path.csv", index=False, header=True)
-        # dfpath = pd.read_csv("path.csv")
         #
         # Folder to save the bash SCP files
         if (parent_scp is None):
@@ -541,6 +557,10 @@ if __name__ == "__main__":
     txt4 += " Default: <current_folder>/bash_scp/"
     abc.add_argument("--d_bash", help=txt4, metavar="")
     #
+    txt12 = "Directory where to store the LOGs. One folder per night."
+    txt12 = " Default: <current_directory>/logs"
+    abc.add_argument("--d_log", help=txt12, metavar="")
+    #
     txt5 = "Number of exposures to be included in each bash file to be copied."
     txt5 += " Default: 25"
     abc.add_argument("--N", help=txt5, metavar="", default=25, type=int)
@@ -574,10 +594,6 @@ if __name__ == "__main__":
     #
     txt11 = "Is this a test run? This flag allows to query only 5 exposures"
     abc.add_argument("--test", help=txt11, action="store_true")
-    #
-    txt12 = "Directory where to store the LOGs. One folder per night."
-    txt12 = " Default: <current_directory>/logs"
-    abc.add_argument("--dir_log", help=txt12, metavar="")
     # Recover args
     val = abc.parse_args()
     kw = dict()
@@ -588,7 +604,7 @@ if __name__ == "__main__":
     kw["dir_bash"] = val.d_bash
     kw["dir_exp"] = val.d_exp
     kw["dir_immask"] = val.d_msk
-    kw["dir_log"] = val.dir_log
+    kw["dir_log"] = val.d_log
     kw["prefix"] = val.pref
     kw["teff_g"] = val.teff_g
     kw["teff_riz"] = val.teff_riz
@@ -603,3 +619,10 @@ if __name__ == "__main__":
     # Remote copy
     if ended_ok:
         DB.run_scp()
+    # Save a plain text list of the copied files, to be used in case the 
+    # sumbission fails and we need to only run diffimaging again. 
+    backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
+    with open(backup_list, "w+") as b:
+        for im in DB.immask_files:
+            b.write("{0}\n".format(im))
+    logging.info("Backup file saved on cwd: {0}".format(backup_list))
