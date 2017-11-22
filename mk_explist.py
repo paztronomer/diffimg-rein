@@ -39,7 +39,6 @@ except:
 # =============================
 # PENDINGS
 # - keep a log of processed files
-# - write a supra code to manage it
 # =============================
 
 class Toolbox():
@@ -233,8 +232,8 @@ class DBInfo():
         the telescope.
         The table results will be saves as *.csv. But remember! there are gonna
         be multiple tables per day, so make filename meaningful
-        Important: each time the query is performed, it saves cummulative 
-        results, so each time is bigger 
+        Important: each time the query is performed, it saves cummulative
+        results, so each time is bigger
         Inputs
         - minEXPTIME: minimum exposure time
         - minTEFF_g: minimum value of T_EFF for g-band
@@ -430,8 +429,8 @@ class DBInfo():
             logging.warning(msg_nonew)
             exit(0)
             # Keep the above exit(0)
-        # The above allows us to get the unique elements and thus use them in 
-        # the generation of bash files 
+        # The above allows us to get the unique elements and thus use them in
+        # the generation of bash files
         #
         # Need to query every pair pfw_attempt_id-expnum
         dfpath = pd.DataFrame()
@@ -561,9 +560,10 @@ if __name__ == "__main__":
     txt12 = " Default: <current_directory>/logs"
     abc.add_argument("--d_log", help=txt12, metavar="")
     #
+    Nmax = 20
     txt5 = "Number of exposures to be included in each bash file to be copied."
-    txt5 += " Default: 25"
-    abc.add_argument("--N", help=txt5, metavar="", default=25, type=int)
+    txt5 += " Default: {0}".format(Nmax)
+    abc.add_argument("--N", help=txt5, metavar="", default=Nmax, type=int)
     #
     user_aux = os.getlogin()
     txt6 = "Username to be employed for connect to DESDM."
@@ -619,8 +619,8 @@ if __name__ == "__main__":
     # Remote copy
     if ended_ok:
         DB.run_scp()
-    # Save a plain text list of the copied files, to be used in case the 
-    # sumbission fails and we need to only run diffimaging again. 
+    # Save a plain text list of the copied files, to be used in case the
+    # sumbission fails and we need to only run diffimaging again.
     backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
     with open(backup_list, "w+") as b:
         for im in DB.immask_files:
