@@ -131,9 +131,14 @@ class Perm():
             cmd = "chmod -R {0} {1}".format(code, path)
         else:
             cmd = "chmod {0} {1}".format(code, path)
+        # The subprocess.call() waits for the process to finish and returns
+        # returncode attribute
         cA = subprocess.call(shlex.split(cmd))
-        cA.wait()
-        return True
+        if (cA != 0):
+            raise ValueError("Error on chmod call")
+            exit(1)
+        else:
+            return True
 
 
 if __name__ == "__main__":
@@ -150,26 +155,19 @@ if __name__ == "__main__":
     tab = pd.read_table(args[1], header=None, names=["path"])["path"].values
     aux = args[2]
 
-    C = Care(log2file=aux)
     P = Perm()
-
+    C = Care(log2file=aux)
+    
     x_path = []
-    c = 1
     for fnm in tab:
-        print "{0} of {1}, {2}".format(c, tab.size, fnm)
         C.integrity_checksum(fnm)
         x_path.append( P.dir_up(fnm) )
-        c += 1
-    print x_path
     
     # Avoid duplicates
     x_path = np.unique( np.array(x_path) )
-    d = 1
     for upath in x_path:
         print "chmod working on {0}".format(upath)
         P.mode_change(upath)
-        print d
-        d += 1
 
     t1 = time.time()
     print "Ended in {0:.2f} min".format((t1 - t0) / 60.)
