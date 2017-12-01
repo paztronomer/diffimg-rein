@@ -27,7 +27,7 @@ class Aid():
         input expression in the filename into one file. Only goes to the given
         DEPTH
         """
-        cnt = 0
+        c = 0
         for root, dirs, files in os.walk(path):
             if root.count(os.sep) >= DEPTH:
                 del dirs[:]
