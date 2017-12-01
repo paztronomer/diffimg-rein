@@ -34,14 +34,22 @@ class Change_Keys():
                 format="%(asctime)s - %(levelname)s - %(message)s"
             )
 
-    def modify(self, fits, extname="SCI", access_mode="rw"):
+    def modify(self, fits, extname="SCI"):
         """ Method to change/add header keys
         """
         if os.path.exists(fits):
             try:
-                hdu = fitsio.FITS(fits, access_mode)
-                fits = hdu[extname]
-                h = fits.read_header()
+                # Copy from archive to local home, to have both files is
+                # a safe measure
+                cmdA = "cp {0} {1}".format(fits, os.path.expanduser("~"))
+                cA = subprocess.call(shlex.split(cmdA))
+                logging.info("{0} copied to home".format(fits))
+                #
+                local_fits = os.path.join(os.path.expanduser("~"), 
+                                          os.path.basename(fits))
+                hdu = fitsio.FITS(local_fits, "rw")
+                sci_ext = hdu[extname]
+                h = sci_ext.read_header()
                 # Get RA, DEC, transform them and use
                 ra_hh = [np.float(x) for x in h["RA"].split(":")]
                 ra_hh = ra_hh[0] + ra_hh[1] / 60. + ra_hh[2] / 3600.
@@ -80,10 +88,19 @@ class Change_Keys():
                     "comment": "Modified on {0}".format(time.ctime()),
                 }
                 new_keys = [d0, d1, d2]
-                fits.write_keys(new_keys)
+                sci_ext.write_keys(new_keys)
                 # Close HDU
                 hdu.close()
+                # Move back to original location, erasing from home
+                cmdB = "mv -v --force {0} {1}".format(local_fits, fits)
+                cB = subprocess.Popen(shlex.split(cmdB), 
+                                      stdout=subprocess.PIPE)
+                out_cB = cB.communicate()
+                cB.wait()
+                logging.info(out_cB)
+                logging.info("{0} moved back to {1}".format(fits, local_fits))
             except Exception as e:
+                logging.error(e)
                 logging.error("Failed HEADER modification on {0}".format(fits))
         else:
             logging.error("Inexistent of not readable file: {0}".format(fits))
