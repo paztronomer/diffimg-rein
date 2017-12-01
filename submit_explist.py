@@ -30,8 +30,7 @@ class Work():
     def __init__(self, im_list=None, im_table=None, dir_log=None, nite=None):
         """ Method to initialize Work()
         Inputs
-        - im_list: list. List of pull paths to be used as the images to be
-        processed
+        - im_list: list. List of full paths of the images to be processed
         - im_table: str. Filename of the plain text (1 column) file harboring
         the full paths to the images to be processed
         - dir_log: str, folder to harbor the logs for the processing
@@ -50,7 +49,7 @@ class Work():
         self.dir_log = dir_log
         self.nite = nite
         # String containing the exec time of this script, used for naming logs
-        self.isotime = datetime.datetime.today().strftime("%Y%m%dT%H:%M:%S") 
+        self.isotime = datetime.datetime.today().strftime("%Y%m%dT%H:%M:%S")
 
     def runproc(self):
         """ Method to iterate over the files and submit the work
@@ -111,7 +110,7 @@ class Work():
         # Setup write out
         lognm = "proc_nite_{0}_run_{1}.log".format(self.nite, self.isotime)
         logpath = os.path.join(self.dir_log, lognm)
-        logging.basicConfig(filename=logpath, level=logging.DEBUG, 
+        logging.basicConfig(filename=logpath, level=logging.DEBUG,
                             format="%(asctime)s - %(levelname)s - %(message)s")
         # First information
         logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
