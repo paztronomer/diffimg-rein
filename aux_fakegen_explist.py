@@ -44,9 +44,8 @@ class Aid():
                         c += 1
         # Reset index
         df0.reset_index(drop=True, inplace=True)
-        print df0.info()
-        print df0[1]
-        df0.write_csv(outnm, header=True, index=False)
+        # Write out
+        df0.to_csv(outnm, header=True, index=False)
         return df0
 
 if __name__ == "__main__":
