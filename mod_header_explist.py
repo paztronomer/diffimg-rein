@@ -29,7 +29,7 @@ class Change_Keys():
         # IMPORTANT! Check how to append and not overwrite the LOG
         if not (logname is None):
             logging.basicConfig(
-                filename=logname, 
+                filename=logname,
                 level=logging.DEBUG,
                 format="%(asctime)s - %(levelname)s - %(message)s"
             )
@@ -45,7 +45,7 @@ class Change_Keys():
                 cA = subprocess.call(shlex.split(cmdA))
                 logging.info("{0} copied to home".format(fits))
                 #
-                local_fits = os.path.join(os.path.expanduser("~"), 
+                local_fits = os.path.join(os.path.expanduser("~"),
                                           os.path.basename(fits))
                 hdu = fitsio.FITS(local_fits, "rw")
                 sci_ext = hdu[extname]
@@ -70,7 +70,7 @@ class Change_Keys():
                 k_object = "DESWS hex WS{0} tiling 1".format(XY)
                 k_field = "WS{0}".format(XY)
                 k_tiling = "tiling 1"
-                # Construct the list of dictionaries to be used as input for 
+                # Construct the list of dictionaries to be used as input for
                 # write new header values
                 d0 = {
                     "name": "OBJECT",
@@ -93,7 +93,7 @@ class Change_Keys():
                 hdu.close()
                 # Move back to original location, erasing from home
                 cmdB = "mv -v --force {0} {1}".format(local_fits, fits)
-                cB = subprocess.Popen(shlex.split(cmdB), 
+                cB = subprocess.Popen(shlex.split(cmdB),
                                       stdout=subprocess.PIPE)
                 out_cB = cB.communicate()
                 cB.wait()
@@ -104,15 +104,14 @@ class Change_Keys():
                 logging.error("Failed HEADER modification on {0}".format(fits))
         else:
             logging.error("Inexistent of not readable file: {0}".format(fits))
-            exit(1)
 
 if __name__ == "__main__":
-    
+
     # Simplest way to call
     args = sys.argv
 
     CK = Change_Keys(logname="logs/20171119/modHeader_20171119.log")
-    
+
     logging.info("Starting on {0}".format(time.ctime()))
 
     # Run over a list of FITS files
@@ -123,4 +122,3 @@ if __name__ == "__main__":
 
     txt_end = "Ended on {0}, {1} FITS files".format(time.ctime(), tab.size)
     logging.info(txt_end)
-
