@@ -33,7 +33,8 @@ class Aid():
                 del dirs[:]
             for index,item in enumerate(files):
                 fnm = os.path.join(root, item)
-                if (exp in item) and (os.access(fnm, os.R_OK)):
+                if ((exp in item) and (str(nite) in item)
+                     and (os.access(fnm, os.R_OK))):
                     if (c == 0):
                         df0 = pd.read_csv(fnm, engine="python")
                         c += 1
