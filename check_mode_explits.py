@@ -1,10 +1,10 @@
-""" Script to check md5 of the transferred files
+"""
+Script to check md5 of the transferred files
+ The filename of the desired log file will be input by the supra script,
+ as well as the source from where to extract the md5sum coming from the DB
 
-The filename of the desired log file will be input by the supra script,
-as well as the source from where to extract the md5sum coming from the DB
-
-Each time this code runs will generate a new LOG file, then run it only
-once per set of files belonging to one night
+ Each time this code runs will generate a new LOG file, then run it only
+ once per set of files belonging to one night
 """
 
 import os
@@ -23,28 +23,28 @@ import subprocess
 import collections
 import uuid
 import numpy as np
+import pandas as pd
 import fitsio
 
 class Care():
-    """ Class devoted to check for integrity of the transferred file
-    """
-
-    def __init__(self, logfile=None):
-        if (logfile is None):
+    def __init__(self, log2file=None):
+        if (log2file is None):
             hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
-            aux = "failCheck_{0}_{1}.txt".format(hhmmss, str(uuid.uuid4()))
-            self.logfile = aux
+            aux = "failCheck_{0}_{1}.log".format(hhmmss, str(uuid.uuid4()))
+            self.log2file = aux
+        else:
+            self.log2file = log2file
 
     def write_info(self, line_info):
-        """ Method to write line by line to the logfile.
-        First it checks if logfile exists, if not exists, creates it
+        """ Method to write line by line to the log2file.
+        First it checks if log2file exists, if not exists, creates it
         """
         try:
-            with open(self.logfile, "a+") as objfile:
+            with open(self.log2file, "a+") as objfile:
                 # Open to append
                 objfile.write(line_info)
         except IOError as ioe:
-            with open(self.logfile, "a+") as objfile:
+            with open(self.log2file, "w+") as objfile:
                 # Create to write
                 objfile.info(line_info)
         return True
@@ -56,27 +56,32 @@ class Care():
         'data checksum failed' or 'hdu checksum failed'
         Note this option is HIGHLY dependent of fitsio error message
         """
-        hdu = fitsio.FITS(filename)
-        gonext = True
-        ext = 0
-        error_check = False
-        while gonext:
-            try:
-                verify = hdu[ext].verify_checksum()
-            except Exception as e: #ValueError as ve:
-                if ("checksum failed" in str(e)):
-                    print 123
-                    # save occurence to logfile
-                    error_check = True
-                gonext = False
-            ext += 1
-        hdu.close()
-        # If the file checksum failed, then save only 1 occurrence on the logs
-        if error_check:
-            # Format: reason, filename
-            line = "CHECKSUM,{0}\n".format(filename)
+        if os.path.exists(filename):
+            hdu = fitsio.FITS(filename)
+            gonext = True
+            ext = 0
+            error_check = False
+            while gonext:
+                try:
+                    verify = hdu[ext].verify_checksum()
+                except Exception as e: #ValueError as ve:
+                    if ("checksum failed" in str(e)):
+                        print 123
+                        # save occurence to log2file
+                        error_check = True
+                    gonext = False
+                ext += 1
+            hdu.close()
+            # If the file checksum failed, then save only 1 occurrence on log
+            if error_check:
+                # Format: reason, filename
+                line = "CHECKSUM,{0}\n".format(filename)
+                self.write_info(line)
+        else:
+            # This error means file doesn't exists or user has not read 
+            # permission
+            line = "IOERROR,{0}\n".format(filename)
             self.write_info(line)
-
 
     def integrity_md5(self, filename):
         """ Method to compare MD5 from DB against local md5 output
@@ -140,20 +145,31 @@ if __name__ == "__main__":
     # parent folders
     args = sys.argv
 
-    C = Care()
+    t0 = time.time()
+    # Load the table, assuming it contains only full paths
+    tab = pd.read_table(args[1], header=None, names=["path"])["path"].values
+    aux = args[2]
+
+    C = Care(log2file=aux)
     P = Perm()
 
-    # Load the table, assuming it contains only full paths
-    tab = np.loadtxt(args[0])
-    path = []
+    x_path = []
+    c = 1
     for fnm in tab:
-        print fnm
+        print "{0} of {1}, {2}".format(c, tab.size, fnm)
         C.integrity_checksum(fnm)
-        path.append( P.dir_up(fnm) )
+        x_path.append( P.dir_up(fnm) )
+        c += 1
+    print x_path
+    
     # Avoid duplicates
-    path = np.unique( np.array(path) )
-    for upath in path:
+    x_path = np.unique( np.array(x_path) )
+    d = 1
+    for upath in x_path:
         print "chmod working on {0}".format(upath)
         P.mode_change(upath)
+        print d
+        d += 1
 
-    print "Ended!"
+    t1 = time.time()
+    print "Ended in {0:.2f} min".format((t1 - t0) / 60.)
