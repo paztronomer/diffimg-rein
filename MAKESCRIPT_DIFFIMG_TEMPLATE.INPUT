@@ -68,7 +68,7 @@ DOFAKE_FLAG:   1  # 0 => no fakes (copy xxx.fits xxx+fakeSN.fits) ;
 # In the .INPUT file, change SCAMP_INFILE to be  WS_astrom_FNAL_v4.scamp
 #
 # needed for later
-DOFAKE_OPTIONS: -outFile_STARCAT  STARMATCH_doFake.out -SNCUT_MAG 15 25 -SNCUT_TREST -10 30 -dbVersion_SNFake KBOMAG20ALLSKY
+DOFAKE_OPTIONS: -outFile_STARCAT  STARMATCH_doFake.out -SNCUT_MAG 15 25 -SNCUT_TREST -10 30 -dbVersion_SNFake KBOMAG20ALLSKY -DOFAKE_KBOFILE /data/des51.a/data/fpazchin/Code/diff_imaging/diffimg-rein/out_fakegen/fakeobs_20171119.csv
 #DOFAKE_OPTIONS: -outFile_STARCAT  STARMATCH_doFake.out -SNCUT_MAG 15 25 -SNCUT_TREST -10 30 -dbVersion_SNFake KNFakes57382noHost
 # -STARCUT_MAG 15 22.5
 #DOFAKE_LIBDIR:  fakeLib_kherner_KNFakes_57279_noHost
