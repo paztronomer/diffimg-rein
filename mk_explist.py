@@ -367,7 +367,10 @@ class DBInfo():
         # time we query the DB
         # The condition for prefix=None is now on the __init__
         self.prefix += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
-        outnm = os.path.join(parent_explist, outnm)
+        #
+        # Double check here past:  os.path.join(parent_explist, outnm)
+        #
+        outnm = os.path.join(parent_explist, self.prefix)
         df0.to_csv(outnm, index=False, header=True)
         return df0
 
@@ -609,8 +612,8 @@ if __name__ == "__main__":
     abc.add_argument("--user", help=txt6, metavar="", default=user_aux)
     #
     txt7 = "Prefix to be used on the written exposure lists. The default is"
-    txt7 += " explist, so the final names are explist_<nite>_<hh:mm:ss>.csv"
-    txt7 += " where hh:mm:ss is the time at which the query was saved"
+    txt7 += " explist, so the final names are explist_<nite>_<HHhMMmSSs>.csv"
+    txt7 += " where HHh MMm SSs is the time at which the query was saved"
     abc.add_argument("--pref", help=txt7, metavar="")
     #
     time_aux = 30.
