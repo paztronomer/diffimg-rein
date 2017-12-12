@@ -119,6 +119,11 @@ class Work():
 
 if __name__ == "__main__":
     # Parse of arguments
+    #
+    # NOTE: previously the code was constructed to go over all the files, but
+    # intead it needs to walk through the EXPNUMs because the main frame
+    # has a way to construct the paths
+    #
     h = "Script to iterate over a list of exposures (full path) and submit"
     h += " the diffimg processing. The LOG files will be named as"
     h += " proc_nite_<nite>_run_<actual time at which proc started>.log"

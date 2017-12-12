@@ -66,15 +66,45 @@ class Toolbox():
         - attnum
         - fnm: actual filename of immask files
         - modify_fnm: whether to change the ReqnumAttnum string on filename
+        - str_run: string to replace the ReqnumAttnum if modify_fn=True. It is
+        'r4p4' for Y5N
         Returns
         - string with the destination path
         """
         # Modify filename
         if modify_fnm:
+            # 1) Change reqnum, attnum
             aux = "r{0}p{1:02}".format(reqnum, attnum)
-            fnm = fnm.replace(aux, str_run)
+            # First, check if the string exists in the filename
+            if (fnm.find(aux) >= 0):
+                fnm = fnm.replace(aux, str_run)
+            else:
+                err_aux = "Error in filename modification: {0}".format(fnm)
+                err_aux += " String {0} was not found".format(aux)
+                logging.error(err_aux)
+                exit(1)
+                #
+                # Important: here I'm exiting, but other solutions should be
+                # better
+                #
+            # 2) Change _c{ccdnum}_ by _{ccdnum}_
+            if (fnm.find("_c") >= 0):
+                fnm = fnm.replace("_c", "_")
+            else:
+                err_aux = "Error in filename modification: {0}".format(fnm)
+                err_aux += " String {0} was not found".format("_c{CCDNUM}")
+                logging.error(err_aux)
+                exit(1)
+            # 3) Change immaked by immask
+            if (fnm.find("immasked") >= 0):
+                fnm = fnm.replace("immasked", "immask")
+            else:
+                err_aux = "Error in filename modification: {0}".format(fnm)
+                err_aux += " String {0} was not found".format("immasked")
+                logging.error(err_aux)
+                exit(1)
         # Check if directory exists, if not, then create it
-        folder = os.path.join(parent, "{0}/{1:08}".format(nite, expnum))
+        folder = os.path.join(parent, "{0}/{1:8}".format(nite, expnum))
         try:
             os.makedirs(folder)
         except OSError as exception:
@@ -152,7 +182,8 @@ class Toolbox():
 class DBInfo():
     def __init__(self, username=None, nite=None, exptime=None, Nexpnum=None,
                  dir_bash=None, dir_exp=None, dir_immask=None, dir_log=None,
-                 prefix=None, teff_g=None, teff_riz=None, testing=None):
+                 prefix=None, teff_g=None, teff_riz=None, ra_range=None,
+                 dec_range=None, testing=None):
         """ Method to feed relevant info
         Inputs
         - username: str, user to connect to DESDM
@@ -167,6 +198,8 @@ class DBInfo():
         - prefix: str, prefix to the filename of the explists
         - teff_g, teff_riz: float, minimum values for T_EFF, g-band and
         r, i, z-bands
+        - ra_range: list of 2 RA min and max, in degrees
+        - dec_range: list of 2 DEC min and max, in degrees
         - testing: boolean, if True, the only use 50 exposures
         """
         if nite is None:
@@ -183,7 +216,7 @@ class DBInfo():
             d2 = d1 + datetime.timedelta(days=1)
             self.nite1 = d1.strftime("%Y%m%d")
             self.nite2 = d2.strftime("%Y%m%d")
-        self.hhmmss = datetime.datetime.today().strftime("%H:%M:%S")
+        self.hhmmss = datetime.datetime.today().strftime("%Hh%Mm%Ss")
         self.username = username
         self.exptime = exptime
         self.Nexpnum = Nexpnum
@@ -197,6 +230,8 @@ class DBInfo():
             self.prefix = prefix
         self.teff_g = teff_g
         self.teff_riz = teff_riz
+        self.ra_range = ra_range
+        self.dec_range = dec_range
         self.testing = testing
         # Lists to keep track of the bash files and of the copied immask.fits
         self.bash_files = []
@@ -246,7 +281,6 @@ class DBInfo():
         minTEFF_g = self.teff_g
         minTEFF_riz = self.teff_riz
         parent_explist = self.dir_exp
-        outnm = self.prefix
         # Define the query which assumes last try to process as the valid
         qi = "with z as ("
         qi += "  select fcut.expnum, max(fcut.lastchanged_time) as evaltime"
@@ -265,6 +299,10 @@ class DBInfo():
         qi += "  and e.exptime>={0}".format(minEXPTIME)
         qi += "  and e.nite between"
         qi += "  {0} and {1}".format(int(self.nite1), int(self.nite2))
+        if not (self.ra_range is None):
+            qi += " and e.radeg between {0} and {1}".format(*self.ra_range)
+        if not (self.dec_range is None):
+            qi += " and e.decdeg between {0} and {1}".format(*self.dec_range)
         qi += "  and fcut.expnum=z.expnum"
         qi += "  and fcut.expnum=e.expnum"
         qi += "  and fcut.lastchanged_time=z.evaltime"
@@ -328,7 +366,7 @@ class DBInfo():
         # Write out the table, one slightly different filename for each
         # time we query the DB
         # The condition for prefix=None is now on the __init__
-        outnm += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+        self.prefix += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
         outnm = os.path.join(parent_explist, outnm)
         df0.to_csv(outnm, index=False, header=True)
         return df0
@@ -592,8 +630,18 @@ if __name__ == "__main__":
     abc.add_argument("--teff_riz", help=txt10, metavar="",
                      default=teff_riz_aux, type=float)
     #
-    txt11 = "Is this a test run? This flag allows to query only 5 exposures"
-    abc.add_argument("--test", help=txt11, action="store_true")
+    tmp_ra = [20., 40.]
+    txt11 = "Minimum and maximum RA (degrees), separated by space."
+    txt11 += " Default: {0} {1}".format(*tmp_ra)
+    abc.add_argument("--ra", help=txt11, nargs=2, type=float, default=tmp_ra)
+    #
+    tmp_dec = [-90., -10.]
+    txt12 = "Minimum and maximum DEC (degrees), separated by space."
+    txt12 += " Default: {0} {1}".format(*tmp_dec)
+    abc.add_argument("--dec", help=txt12, nargs=2, type=float, default=tmp_dec)
+    #
+    txtN = "Is this a test run? This flag allows to query only 5 exposures"
+    abc.add_argument("--test", help=txtN, action="store_true")
     # Recover args
     val = abc.parse_args()
     kw = dict()
@@ -608,6 +656,8 @@ if __name__ == "__main__":
     kw["prefix"] = val.pref
     kw["teff_g"] = val.teff_g
     kw["teff_riz"] = val.teff_riz
+    kw["ra_range"] = val.ra
+    kw["dec_range"] = val.dec
     kw["testing"] = val.test
     #
     # Calling

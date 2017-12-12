@@ -69,7 +69,7 @@ class Change_Keys():
                 XY = "{0}{1}{2}".format(aux_ra_d, s, aux_dec_d)
                 k_object = "DESWS hex WS{0} tiling 1".format(XY)
                 k_field = "WS{0}".format(XY)
-                k_tiling = "tiling 1"
+                k_tiling = 1
                 # Construct the list of dictionaries to be used as input for
                 # write new header values
                 d0 = {
