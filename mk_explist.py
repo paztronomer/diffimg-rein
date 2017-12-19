@@ -166,6 +166,7 @@ class Toolbox():
             # the structured array scratch
             # return df_obj.to_records(index=False)
         else:
+            logging.warning("No easyaccess, will exit")
             # Needed variables: to_query, outdtype
             desfile = os.path.join(os.getenv("HOME"), ".desservices.ini")
             section = "db-desoper"
@@ -451,7 +452,9 @@ class DBInfo():
         dfcomp = None
         #
         if df_tmp.empty:
-            logging.error("An error occurred when checking for new data")    
+            txt_emp = "An error occurred when checking for new data. None was"
+            txt_emp += " encountered"
+            logging.error(txt_emp)    
             exit(1)
         else:
             # EUPS has only up to pandas 0.15, then I can not use
@@ -525,8 +528,10 @@ class DBInfo():
                 write_exp = np.array(map(int, write_exp))
                 for idx, row in dfpath.iterrows():
                     if (row["EXPNUM"] in write_exp):
-                        cond = ((dfexp["EXPNUM"] == row["EXPNUM"]) &
-                                (dfexp["PFW_ATTEMPT_ID"] == row["PFW_ATTEMPT_ID"]))
+                        cond = (
+                            (dfexp["EXPNUM"] == row["EXPNUM"]) &
+                            (dfexp["PFW_ATTEMPT_ID"] == row["PFW_ATTEMPT_ID"])
+                        )
                         # Pending: check for unique req, att
                         req = dfexp.loc[cond, "REQNUM"].values[0]
                         att = dfexp.loc[cond, "ATTNUM"].values[0]
@@ -685,12 +690,12 @@ if __name__ == "__main__":
     ended_ok = DB.exp_mask()
     # Remote copy
     if ended_ok:
-        print "RUN DOWNLOAD"
+        logging.info("Run scp transfer")
         DB.run_scp()
     # Save a plain text list of the copied files, to be used in case the
     # sumbission fails and we need to only run diffimaging again.
     backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
-    backup_list = os.path.join(dir_log, backup_list)
+    backup_list = os.path.join(val.d_log, val.nite, backup_list)
     with open(backup_list, "w+") as b:
         for im in DB.immask_files:
             b.write("{0}\n".format(im))
