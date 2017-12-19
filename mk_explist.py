@@ -301,7 +301,7 @@ class DBInfo():
         qi += "  where e.obstype='object'"
         qi += "  and e.exptime>={0}".format(minEXPTIME)
         qi += "  and e.nite between"
-        qi += "  {0} and {1}".format(int(self.nite1), int(self.nite2))
+        qi += " {0} and {1}".format(int(self.nite1), int(self.nite2))
         if not (self.ra_range is None):
             qi += " and e.radeg between {0} and {1}".format(*self.ra_range)
         if not (self.dec_range is None):
@@ -369,11 +369,11 @@ class DBInfo():
         # Write out the table, one slightly different filename for each
         # time we query the DB
         # The condition for prefix=None is now on the __init__
-        self.prefix += "_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+        aux_out= "{0}_{1}_{2}.csv".format(self.prefix, self.nite1, self.hhmmss)
         #
         # Double check here past:  os.path.join(parent_explist, outnm)
         #
-        outnm = os.path.join(parent_explist, self.prefix)
+        outnm = os.path.join(parent_explist, aux_out)
         df0.to_csv(outnm, index=False, header=True)
         return df0
 
@@ -393,7 +393,7 @@ class DBInfo():
         - desdm_user: user on the DESDM side, which will access the files.  If
         user is None, get the one in the session
         Outputs
-        - boolean when end
+        - boolean when ends
         """
         size_copy = self.Nexpnum
         parent_immask = self.dir_immask
@@ -421,16 +421,6 @@ class DBInfo():
             for fnm in files:
                 if ("{0}_{1}".format(self.prefix, self.nite1) in fnm):
                     counter_files += 1
-                    # If there is only one file then copy it to a new filename
-                    if (counter_files == 1):
-                        newaux = "newdata_{0}".format(self.nite1)
-                        newaux += "_{0}.csv".format(self.hhmmss)
-                        newaux = os.path.join(root, newaux)
-                        orig = os.path.join(root, fnm)
-                        shutil.copy2(orig, newaux)
-                        logging.info("Saving newdata: {0}".format(newaux))
-                        # copy2 preserves metadata
-                        #
                     try:
                         aux_fnm = os.path.join(root, fnm)
                         tmp = pd.read_csv(aux_fnm, engine="python")
@@ -438,20 +428,31 @@ class DBInfo():
                     except:
                         msg = "Cannot load {0}".format(fnm)
                         logging.error(msg)
-        # Compare dfexp with dfcomp and if there are new entries, continue. if
-        # not, then stop and exit
+        # If ONLY ONE file exists, then that file is copied to be 
+        # a newdata_ file
+        #
+        if (counter_files == 1):
+            newaux = "newdata_{0}".format(self.nite1)
+            newaux += "_{0}.csv".format(self.hhmmss)
+            newaux = os.path.join(root, newaux)
+            orig = os.path.join(root, fnm)
+            # Copy: explist to newdata 
+            shutil.copy2(orig, newaux)
+            logging.info("Saving newdata: {0}".format(newaux))
+            # copy2 preserves metadata
+            #
+        # Compare dfexp (list of retrieved expnum from the querys) with 
+        # dfcomp (all the info in the already saved files) and if there 
+        # are new entries, continue. If not, then stop and exit
         #
         # There is no need to concatenate [dfexp, dfcomp] because dfexp was
         # already written on disk, so its already inside dfcomp
         df_tmp = dfcomp.reset_index(drop=True)
         dfcomp = None
         #
-        # Check if there are exposures. DF.empty returns True if empty 
-        #
         if df_tmp.empty:
-            txt_emp = "Night {0} has no data in the range".format(self.nite1)
-            logging.warning(txt_emp)
-            return True
+            logging.error("An error occurred when checking for new data")    
+            exit(1)
         else:
             # EUPS has only up to pandas 0.15, then I can not use
             # drop_duplicates with keep=False
@@ -684,10 +685,12 @@ if __name__ == "__main__":
     ended_ok = DB.exp_mask()
     # Remote copy
     if ended_ok:
+        print "RUN DOWNLOAD"
         DB.run_scp()
     # Save a plain text list of the copied files, to be used in case the
     # sumbission fails and we need to only run diffimaging again.
     backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
+    backup_list = os.path.join(dir_log, backup_list)
     with open(backup_list, "w+") as b:
         for im in DB.immask_files:
             b.write("{0}\n".format(im))
