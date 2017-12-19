@@ -107,7 +107,7 @@ class Toolbox():
                 logging.error(err_aux)
                 exit(1)
         # Check if directory exists, if not, then create it
-        folder = os.path.join(parent, "{0}/{1:8}".format(nite, expnum))
+        folder = os.path.join(parent, "{0}/{1}".format(nite, expnum))
         try:
             os.makedirs(folder)
         except OSError as exception:
