@@ -224,10 +224,23 @@ class DBInfo():
         self.username = username
         self.exptime = exptime
         self.Nexpnum = Nexpnum
-        self.dir_bash = dir_bash
-        self.dir_exp = dir_exp
         self.dir_immask = dir_immask
-        self.dir_log = dir_log
+        # Folder to save the bash SCP files
+        if (dir_bash is None):
+            self.dir_bash = os.path.join(os.getcwd(), "bash_scp/")
+        else:
+            self.dir_bash = dir_bash
+        # Folder to save the explist csv files
+        if (dir_exp is None):
+            self.dir_exp = os.path.join(os.getcwd(), "explist/")
+        else:
+            self.dir_exp = dir_exp
+        # Check/assign LOG directory
+        if (dir_log is None):
+            self.dir_log = os.path.join(os.getcwd(), "logs/")
+        else:
+            self.dir_log = dir_log
+        # Check/assign EXPLIST directory
         if (prefix is None):
             self.prefix = "explist"
         else:
@@ -245,9 +258,7 @@ class DBInfo():
     def setup_log(self):
         """ Method to setup the log output and start with some information
         """
-        # Check/crete directory
-        if (self.dir_log is None):
-            self.dir_log = os.path.join(os.getcwd(), "logs/")
+        # Check/create directory
         try:
             self.dir_log = os.path.join(self.dir_log, self.nite1)
             os.makedirs(self.dir_log)
@@ -355,9 +366,7 @@ class DBInfo():
                      inplace=True)
         # Re-index
         df0 = df0.reset_index(drop=True)
-        # Folder to save the explist csv files
-        if (parent_explist is None):
-            parent_explist = os.path.join(os.getcwd(), "explist/")
+        # Check/create the EXPLIST directory
         try:
             parent_explist = os.path.join(parent_explist, self.nite1)
             os.makedirs(parent_explist)
@@ -398,7 +407,7 @@ class DBInfo():
         """
         size_copy = self.Nexpnum
         parent_immask = self.dir_immask
-        parent_scp =self.dir_bash
+        parent_scp = self.dir_bash
         desdm_user = self.username
         #
         TT = Toolbox()
@@ -504,9 +513,7 @@ class DBInfo():
                 dfaux = TT.db_query(qp)
                 dfpath = dfpath.append(dfaux)
             #
-            # Folder to save the bash SCP files
-            if (parent_scp is None):
-                parent_scp = os.path.join(os.getcwd(), "bash_scp/")
+            # Check/create BASH directory to save scp scripts
             try:
                 parent_scp = os.path.join(parent_scp, self.nite1)
                 os.makedirs(parent_scp)
@@ -693,9 +700,9 @@ if __name__ == "__main__":
         logging.info("Run scp transfer")
         DB.run_scp()
     # Save a plain text list of the copied files, to be used in case the
-    # sumbission fails and we need to only run diffimaging again.
+    # sumbission fails and we need to only run query/scp again.
     backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
-    backup_list = os.path.join(val.d_log, val.nite, backup_list)
+    backup_list = os.path.join(DB.dir_log, DB.nite1, backup_list)
     with open(backup_list, "w+") as b:
         for im in DB.immask_files:
             b.write("{0}\n".format(im))
