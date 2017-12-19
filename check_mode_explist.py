@@ -119,7 +119,7 @@ class Perm():
             raise ValueError("Path don't exists: {0}".format(path))
             return False
 
-    def mode_change(self, path, code=775, recursive=True):
+    def mode_change(self, path, code=764, recursive=True):
         """ Method to change permissions on file or directories
         Inputs:
         - path: full path over which operate
