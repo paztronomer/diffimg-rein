@@ -1,4 +1,4 @@
-""" Script to simply modify the header of the immasked images, to meet the
+""" Script to modify the header of the immasked images, to meet the
 DESWS criteria for DiffImg processing
 """
 

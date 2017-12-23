@@ -1,0 +1,16 @@
+        INSTRUCTIONS TO RUN
+        ===================
+
+
+To run mk_explist:
+    - source eups.sourceme
+    - python mk_explist.py --nite {some night} --user fpazch
+
+To run DAGMaker: must be a new openly terminal. No eups.sourceme must be loaded
+just only:
+    - valid proxy
+
+To run jobsub_submit_dag: must be a newly terminal, with no other constraint
+than:
+    - valid proxy
+    - source bash_pycurl
