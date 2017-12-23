@@ -17,7 +17,7 @@ import gc
 import logging
 import argparse
 import itertools
-imprt errno
+import errno
 import shlex
 import subprocess
 import collections
@@ -29,6 +29,7 @@ import fitsio
 # =====================================
 # Pending:
 # - get md5sum from DB and compare with the results from bash md5
+# - make the header change parallel! the chmod is not necessary for now
 # =====================================
 
 class Keep_Logs():
@@ -42,15 +43,15 @@ class Keep_Logs():
             self.dir_log = dir_log
         # Check/create directory
         try:
-            self.dir_log = os.path.join(self.dir_log, nite)
+            self.dir_log = os.path.join(self.dir_log, str(nite))
             os.makedirs(self.dir_log)
         except OSError as exception:
             if (exception.errno != errno.EEXIST):
                 raise
                 logging.error("ERROR when creating {0}".format(self.dir_log))
         # Setup write out
-        slef.hhmmss = datetime.datetime.today().strftime("%Hh%Mm%Ss")
-        lognm = "explist_and_copy_{0}_{1}.log".format(nite, self.hhmmss)
+        self.hhmmss = datetime.datetime.today().strftime("%Hh%Mm%Ss")
+        lognm = "checksum_permission_{0}_{1}.log".format(nite, self.hhmmss)
         logpath = os.path.join(self.dir_log, lognm)
         logging.basicConfig(filename=logpath, level=logging.DEBUG,
                             format="%(asctime)s - %(levelname)s - %(message)s")
@@ -194,10 +195,12 @@ if __name__ == "__main__":
     #
     txt3 = "Directory where to store the LOGs. One folder per night."
     txt3 = " Default: <current_directory>/logs"
-    abc.add_argument("--d_log", help=txt3, metavar="")
-    
+    arg.add_argument("--d_log", help=txt3, metavar="")
+    # Parse args
+    arg = arg.parse_args()
+
     # Setup the logs
-    Keep_Logs(arg.night, )
+    Keep_Logs(arg.night, dir_log=arg.d_log)
 
     # Load the table, assuming it contains only full paths
     tab = pd.read_table(arg.file_list, header=None, names=["path"])
@@ -210,6 +213,7 @@ if __name__ == "__main__":
     # Run checksum
     x_path = []
     for fnm in tab:
+        logging.info("checksum of {0}".format(os.path.basename(fnm)))
         C.integrity_checksum(fnm)
         x_path.append( P.dir_up(fnm) )
     
