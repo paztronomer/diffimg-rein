@@ -21,6 +21,10 @@ import numpy as np
 import pandas as pd
 import fitsio
 
+# PENDING
+# - add argparse
+# - run in parallel
+
 class Change_Keys():
     """ Class to change the keys of the header
     """
@@ -106,6 +110,39 @@ class Change_Keys():
             logging.error("Inexistent of not readable file: {0}".format(fits))
 
 if __name__ == "__main__":
+    t0 = "Script to modify the header (and thus change the image itself)"
+    t0 += " to match DiffImg requirements of keywords"
+    ax = argparse.ArgumentParser(description=t0)
+    # 
+
+    exit()
+
+
+    txt = "Script to checksum and datasum from FITS header, using fitsio. It"
+    txt += " also change permissions on the files"
+    arg = argparse.ArgumentParser(description=txt)
+    # 
+    txt1 = "Text file containing the list of full paths of the files over"
+    txt1 += " which to checksum/datasum and change permissions."
+    arg.add_argument("file_list", help=txt1, metavar="")
+    #
+    txt1b = "Night on which we are working"
+    arg.add_argument("night", help=txt1b, metavar="", type=int)
+    # 
+    aux_mod = 764
+    txt2 = "Permission to be recursively set on the file."
+    txt2 += "  Default: {0}".format(aux_mod)
+    arg.add_argument("--perm", help=txt2, metavar="", type=int)
+    #
+    txt3 = "Directory where to store the LOGs. One folder per night."
+    txt3 = " Default: <current_directory>/logs"
+    arg.add_argument("--d_log", help=txt3, metavar="")
+    # Parse args
+    arg = arg.parse_args()
+
+
+    exit()
+
 
     # Simplest way to call
     args = sys.argv
