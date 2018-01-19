@@ -113,49 +113,23 @@ if __name__ == "__main__":
     t0 = "Script to modify the header (and thus change the image itself)"
     t0 += " to match DiffImg requirements of keywords"
     ax = argparse.ArgumentParser(description=t0)
-    # 
-
-    exit()
-
-
-    txt = "Script to checksum and datasum from FITS header, using fitsio. It"
-    txt += " also change permissions on the files"
-    arg = argparse.ArgumentParser(description=txt)
-    # 
-    txt1 = "Text file containing the list of full paths of the files over"
-    txt1 += " which to checksum/datasum and change permissions."
-    arg.add_argument("file_list", help=txt1, metavar="")
-    #
-    txt1b = "Night on which we are working"
-    arg.add_argument("night", help=txt1b, metavar="", type=int)
-    # 
-    aux_mod = 764
-    txt2 = "Permission to be recursively set on the file."
-    txt2 += "  Default: {0}".format(aux_mod)
-    arg.add_argument("--perm", help=txt2, metavar="", type=int)
-    #
-    txt3 = "Directory where to store the LOGs. One folder per night."
-    txt3 = " Default: <current_directory>/logs"
-    arg.add_argument("--d_log", help=txt3, metavar="")
-    # Parse args
-    arg = arg.parse_args()
-
-
-    exit()
-
-
-    # Simplest way to call
-    args = sys.argv
-
-    CK = Change_Keys(logname="logs/20171119/modHeader_20171119.log")
+    h1 = "File containing full paths to the FITS, one per line"
+    ax.add_argument("fits_list", help=h1, metavar="")
+    h2 = "Full path of the log to be created. Suggested: logs/{night}/{N.log}"
+    ax.add_argument("logfile", help=h2, metavar="", type=str)
+    # Parse arguments
+    arg = ax.parse_args()
+    
+    # Initialize
+    CK = Change_Keys(logname=arg.logfile)
 
     logging.info("Starting on {0}".format(time.ctime()))
 
     # Run over a list of FITS files
     # Load the table, assuming it contains only full paths
-    tab = pd.read_table(args[1], header=None, names=["path"])["path"].values
-    for fits_fnm in tab:
-        CK.modify(fits_fnm)
+    tab = pd.read_table(arg.fits_list, header=None, names=["path"])
+    for idx, row in tab.iterrows():
+        CK.modify(row["path"])
 
     txt_end = "Ended on {0}, {1} FITS files".format(time.ctime(), tab.size)
     logging.info(txt_end)

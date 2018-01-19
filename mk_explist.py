@@ -212,6 +212,7 @@ class DBInfo():
             self.nite1 = d1.strftime("%Y%m%d")
             self.nite2 = d2.strftime("%Y%m%d")
         else:
+            # Check if nite was string, if not the case, convert it
             if isinstance(nite, str):
                 pass
             else:
