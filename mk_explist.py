@@ -703,8 +703,18 @@ if __name__ == "__main__":
     # Save a plain text list of the copied files, to be used in case the
     # sumbission fails and we need to only run query/scp again.
     backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
-    backup_list = os.path.join(DB.dir_log, DB.nite1, backup_list)
-    with open(backup_list, "w+") as b:
-        for im in DB.immask_files:
-            b.write("{0}\n".format(im))
+    # Add a safe step here
+    try:
+        backup_list = os.path.join(DB.dir_log, backup_list)
+        with open(backup_list, "w+") as b:
+            for im in DB.immask_files:
+                b.write("{0}\n".format(im))
+    except Exception as e:
+        logging.error(str(e))
+        info1 = "Trying to write {0}".format(backup_list))
+        info1 += " in the current directory"
+        logging.info(info1)
+        with open(backup_list, "w+") as b:
+            for im in DB.immask_files:
+                b.write("{0}\n".format(im))
     logging.info("Backup file saved on cwd: {0}".format(backup_list))
