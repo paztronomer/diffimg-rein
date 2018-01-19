@@ -1,5 +1,5 @@
 # Difference Imaging
- : Subset of scripts to be used on DES DiffImg collaborative work[^1]
+:    Subset of scripts to be used on DES DiffImg collaborative work[^1]
 
 ## Steps
 
