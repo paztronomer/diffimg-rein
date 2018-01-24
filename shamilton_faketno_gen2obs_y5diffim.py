@@ -182,7 +182,8 @@ def create_tno(tno_df_row):
     :return:  the pyEphem EllipticalBody object
     """
     tno = ephem.EllipticalBody()
-    tno.name = str(int(tno_df_row.fakeid))
+    offset_fakeID_snfake = 180000000
+    tno.name = str(int(tno_df_row.fakeid) + offset_fakeID_snfake)
     tno._a = tno_df_row.a
     tno._e = tno_df_row.e
     tno._inc = tno_df_row.i
@@ -307,7 +308,7 @@ def get_good_observations(exposure_df, tno_fakes, nearby_exposure_list):
                            mjd_obs=exp_keep.mjd_obs.iloc[ii],
                            expnum=exp_keep.expnum.iloc[ii],
                            exptime=exp_keep.exptime.iloc[ii],
-                           ra=ras[ii]*180/np.pi, dec=decs[ii]*180/np.pi,
+                           ra=ras[ii], dec=decs[ii],
                            ccdnum=chip_nums[ii],
                            band=exp_keep.band.iloc[ii],
                            nite=exp_keep.nite.iloc[ii],
