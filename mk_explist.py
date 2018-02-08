@@ -711,7 +711,7 @@ if __name__ == "__main__":
                 b.write("{0}\n".format(im))
     except Exception as e:
         logging.error(str(e))
-        info1 = "Trying to write {0}".format(backup_list))
+        info1 = "Trying to write {0}".format(backup_list)
         info1 += " in the current directory"
         logging.info(info1)
         with open(backup_list, "w+") as b:

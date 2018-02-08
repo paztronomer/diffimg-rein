@@ -21,7 +21,9 @@ import subprocess
 import collections
 import uuid
 import numpy as np
-import pandas as pd
+import pandas as pd 
+#
+import shamilton_faketno_gen2obs_y5diffim as fakeTNO
 
 class Aid():
     def __init__(self, mcol=["telra", "teldec", "band", "mjd_obs"]):
