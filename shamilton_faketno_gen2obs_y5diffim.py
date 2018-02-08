@@ -358,9 +358,10 @@ def main():
     tno_observations.to_csv(args.fakeobs_outfile, index=False)
 
 
-def main_caller(exp_file=None, fakegen_file=None, fakeobs_outfile=None):
+def main_caller(exp_df=None, fakegen_file=None, fakeobs_outfile=None):
     """ Method added by F. Paz-Chinchon to be used for importing this code
     Inputs
+    - exp_df: 
     - exp_file: path to the file containing the exposure information
     - fakegen_file: path to the path containing the orbital elements of the 
     fakes to be generated
@@ -370,7 +371,7 @@ def main_caller(exp_file=None, fakegen_file=None, fakeobs_outfile=None):
     #    Select only griz
     #    Compute the DJD (needed for pyEphem)
     #    Convert telra and teldec into ephem.Angle() objects
-    exposures = read_file(exp_file)
+    exposures = exp_df
     exposures = exposures[exposures.band.isin(['g','r','i','z'])]
     exposures['djd_obs'] = exposures.mjd_obs - 15019.5
     exposures['telra'] = exposures.telra.apply(lambda x: ephem.hours(x).znorm)
@@ -390,7 +391,7 @@ def main_caller(exp_file=None, fakegen_file=None, fakeobs_outfile=None):
 
     tno_observations = pd.DataFrame(good_obs)
     tno_observations.to_csv(fakeobs_outfile, index=False)
-
+    return True
 
 if __name__ == "__main__":
     main()
