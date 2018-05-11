@@ -1,11 +1,11 @@
-""" Script to make a list of the new exposures, from the last night (or
+''' Script to make a list of the new exposures, from the last night (or
 another).
 The condition is to be already processed by DESDM. As the processing goes
 through the day, this code needs to run managed by a CRON.
 Mind to be respectful with the files transfer, to not get into the processing
 path.
 Francisco Paz-Chinchon
-"""
+'''
 
 import os
 import sys
@@ -32,7 +32,7 @@ except:
         import despydb.desdbi as desdbi
         ea_import = False
     except:
-        errmsg = "No easyaccess neither despydb.desdbi available. Exiting"
+        errmsg = 'No easyaccess neither despydb.desdbi available. Exiting'
         logging.error(errmsg)
         exit(1)
 
@@ -43,20 +43,20 @@ except:
 
 class Toolbox():
     def split_path(self, path):
-        """Method to return the relative root folder (one level upper),
+        '''Method to return the relative root folder (one level upper),
         given a path.
         Inputs
         - path: complete path
         Returns
         - 2 strings, one being the parent folder, and the filename
-        """
+        '''
         #relat_root = os.path.abspath(os.path.join(path,os.pardir))
         relroot, filename = os.path.split(path)
         return (relroot, filename)
 
     def to_path(self, parent=None, nite=None, expnum=None, reqnum=None,
                 attnum=None, fnm=None, modify_fnm=False, str_run=None):
-        """ Method to check for the existence of the destination folder, and
+        ''' Method to check for the existence of the destination folder, and
         to modify the filename used for save files
         Inputs
         - parent: root folder, /pnfs/des/persistent/wsdiff/exp/NITE/EXPNUM/
@@ -67,23 +67,23 @@ class Toolbox():
         - fnm: actual filename of immask files
         - modify_fnm: whether to change the ReqnumAttnum string on filename
         - str_run: string to replace the ReqnumAttnum if modify_fn=True. It is
-        'r4p4' for Y5N
+        'r4p4' for Y5N 
         Returns
         - string with the destination path
-        """
+        '''
         # Modify filename
         if modify_fnm:
             # 1) Change reqnum, attnum
             #
             # Check if really attnum is zero-padded
             #
-            aux = "r{0}p{1:02}".format(reqnum, attnum)
+            aux = 'r{0}p{1:02}'.format(reqnum, attnum)
             # First, check if the string exists in the filename
             if (fnm.find(aux) >= 0):
                 fnm = fnm.replace(aux, str_run)
             else:
-                err_aux = "Error in filename modification: {0}".format(fnm)
-                err_aux += " String {0} was not found".format(aux)
+                err_aux = 'Error in filename modification: {0}'.format(fnm)
+                err_aux += ' String {0} was not found'.format(aux)
                 logging.error(err_aux)
                 exit(1)
                 #
@@ -91,46 +91,46 @@ class Toolbox():
                 # better
                 #
             # 2) Change _c{ccdnum}_ by _{ccdnum}_
-            if (fnm.find("_c") >= 0):
-                fnm = fnm.replace("_c", "_")
+            if (fnm.find('_c') >= 0):
+                fnm = fnm.replace('_c', '_')
             else:
-                err_aux = "Error in filename modification: {0}".format(fnm)
-                err_aux += " String {0} was not found".format("_c{CCDNUM}")
+                err_aux = 'Error in filename modification: {0}'.format(fnm)
+                err_aux += ' String {0} was not found'.format('_c{CCDNUM}')
                 logging.error(err_aux)
                 exit(1)
             # 3) Change immaked by immask
-            if (fnm.find("immasked") >= 0):
-                fnm = fnm.replace("immasked", "immask")
+            if (fnm.find('immasked') >= 0):
+                fnm = fnm.replace('immasked', 'immask')
             else:
-                err_aux = "Error in filename modification: {0}".format(fnm)
-                err_aux += " String {0} was not found".format("immasked")
+                err_aux = 'Error in filename modification: {0}'.format(fnm)
+                err_aux += ' String {0} was not found'.format('immasked')
                 logging.error(err_aux)
                 exit(1)
         # Check if directory exists, if not, then create it
-        folder = os.path.join(parent, "{0}/{1}".format(nite, expnum))
+        folder = os.path.join(parent, '{0}/{1}'.format(nite, expnum))
         try:
             os.makedirs(folder)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-                logging.error("ERROR when creating {0}".format(folder))
+                logging.error('ERROR when creating {0}'.format(folder))
         # Output the string with the final filename
         return os.path.join(folder, fnm)
 
     def chunk_N(self, y, size, fill_val=np.nan):
-        """ Method to divide the list or 1D array in chunks of size N
+        ''' Method to divide the list or 1D array in chunks of size N
         Inputs
         - data: list, tuple, array 1D to be chunked
         - size_n: number of elements of each chunk
         Returns
         - list of tuples containing the elements. When the last tuple has
         remaining spaces, fill with fill_val
-        """
+        '''
         args = [iter(y)] * size
         return list(itertools.izip_longest(*args, fillvalue=fill_val))
 
-    def isot2mjd(self, isot, time_format="isot", time_scale="utc"):
-        """ Method to transform from something like 2015-09-18T07:19:27.935065
+    def isot2mjd(self, isot, time_format='isot', time_scale='utc'):
+        ''' Method to transform from something like 2015-09-18T07:19:27.935065
         to MJD float. If a list is inputed, a list is returned
         Inputs
         - isot: string, in ISOT format
@@ -138,27 +138,28 @@ class Toolbox():
         - time_scale: scale of time (barycentric, utc, etc)
         Returns
         - float containing the mjd (or a list if a the input is multiple)
-        """
+        '''
         aux_t = Time(isot, format=time_format, scale=time_scale).mjd
         return aux_t
 
     def db_query(self, to_query, outdtype=None):
-        """ Method to query the DB
+        ''' Method to query the DB
         Inputs
         - to_query: str, contains the query. Do it changes the final SEMICOLON
         from easyaccess to desdbi?
         Returns
         - structured array
-        """
+        '''
         # What happens in the case of no rows? Test it
         if ea_import:
             # Needs: to_query
-            connect = ea.connect("desoper")
+            connect = ea.connect('desoper')
             cursor = connect.cursor()
             try:
                 df_obj = connect.query_to_pandas(to_query)
             except:
-                logging.error("Error in querying\n\n\t{0}\n\n".format(to_query))
+                t_e = 'Error in querying\n\n\t{0}\n\n'.format(to_query)
+                logging.error(t_e)
                 exit(1)
             connect.close()
             return df_obj
@@ -166,10 +167,10 @@ class Toolbox():
             # the structured array scratch
             # return df_obj.to_records(index=False)
         else:
-            logging.warning("No easyaccess, will exit")
+            logging.warning('No easyaccess, will exit')
             # Needed variables: to_query, outdtype
-            desfile = os.path.join(os.getenv("HOME"), ".desservices.ini")
-            section = "db-desoper"
+            desfile = os.path.join(os.getenv('HOME'), '.desservices.ini')
+            section = 'db-desoper'
             dbi = desdbi.DesDbi(desfile, section)
             cursor = dbi.cursor()
             cursor.execute(to_query)
@@ -184,14 +185,16 @@ class Toolbox():
 
 
 class DBInfo():
-    def __init__(self, username=None, nite=None, exptime=None, Nexpnum=None,
+    def __init__(self, username=None, nite=None, expnum_fnm=None,
+                 exptime=None, Nexpnum=None, 
                  dir_bash=None, dir_exp=None, dir_immask=None, dir_log=None,
                  prefix=None, teff_g=None, teff_riz=None, ra_range=None,
-                 dec_range=None, testing=None):
-        """ Method to feed relevant info
+                 dec_range=None, testing=None, rNpN=None):
+        ''' Method to feed relevant info
         Inputs
         - username: str, user to connect to DESDM
         - nite: str or int, consider it as last night, not today
+        - expnum_fnm: filename of the list of exposure numbers
         - exptime: float, min time in seconds for select exposures
         - Nexpnum: int, number of exposures to be included in each separate
         bash file to copy
@@ -205,45 +208,63 @@ class DBInfo():
         - ra_range: list of 2 RA min and max, in degrees
         - dec_range: list of 2 DEC min and max, in degrees
         - testing: boolean, if True, the only use 50 exposures
-        """
-        if nite is None:
+        '''
+        if (nite is None) and (expnum_fnm is None):
             d1 = datetime.date.today() - datetime.timedelta(days=1)
             d2 = datetime.date.today()
-            self.nite1 = d1.strftime("%Y%m%d")
-            self.nite2 = d2.strftime("%Y%m%d")
-        else:
+            self.nite1 = d1.strftime('%Y%m%d')
+            self.nite2 = d2.strftime('%Y%m%d')
+            self.expnum_df = None
+        elif (nite is not None) and (expnum_fnm is None):
             # Check if nite was string, if not the case, convert it
             if isinstance(nite, str):
                 pass
             else:
                 nite = str(nite)
-            d1 = datetime.datetime.strptime(nite, "%Y%m%d")
+            d1 = datetime.datetime.strptime(nite, '%Y%m%d')
             d2 = d1 + datetime.timedelta(days=1)
-            self.nite1 = d1.strftime("%Y%m%d")
-            self.nite2 = d2.strftime("%Y%m%d")
-        self.hhmmss = datetime.datetime.today().strftime("%Hh%Mm%Ss")
+            self.nite1 = d1.strftime('%Y%m%d')
+            self.nite2 = d2.strftime('%Y%m%d')
+            self.expnum_df = None
+        elif (nite is None) and (expnum_fnm is not None):
+            self.nite1 = None
+            self.nite2 = None
+            explist = pd.read_table(expnum_fnm, names=['EXPNUM'], comment='#')
+            if explist.isnull().values.any():
+                explist = explist.dropna(how='all')
+                explist.reset_index(drop=True, inplace=True)
+                t_w = 'Input explist file {0} contains NaN'.format(expnum_fnm)
+                t_w += ' . NaN were removed'
+                logging.warning(t_w)
+            self.expnum_df = explist
+            # Define auxiliary naming where exposure list is input
+            xmin = self.expnum_df['EXPNUM'].min()
+            xmax = self.expnum_df['EXPNUM'].max()
+            xlen = len(self.expnum_df['EXPNUM'].index)
+            self.fnm_expnum = '{0}t{1}n{2}'.format(xmin, xmax, xlen)
+        self.hhmmss = datetime.datetime.today().strftime('%Hh%Mm%Ss')
         self.username = username
         self.exptime = exptime
         self.Nexpnum = Nexpnum
         self.dir_immask = dir_immask
         # Folder to save the bash SCP files
         if (dir_bash is None):
-            self.dir_bash = os.path.join(os.getcwd(), "bash_scp/")
+            self.dir_bash = os.path.join(os.getcwd(), 'bash_scp/')
         else:
             self.dir_bash = dir_bash
         # Folder to save the explist csv files
         if (dir_exp is None):
-            self.dir_exp = os.path.join(os.getcwd(), "explist/")
+            self.dir_exp = os.path.join(os.getcwd(), 'explist/')
         else:
             self.dir_exp = dir_exp
         # Check/assign LOG directory
         if (dir_log is None):
-            self.dir_log = os.path.join(os.getcwd(), "logs/")
+            self.dir_log = os.path.join(os.getcwd(), 'logs/')
         else:
             self.dir_log = dir_log
         # Check/assign EXPLIST directory
         if (prefix is None):
-            self.prefix = "explist"
+            self.prefix = 'explist'
         else:
             self.prefix = prefix
         self.teff_g = teff_g
@@ -251,34 +272,56 @@ class DBInfo():
         self.ra_range = ra_range
         self.dec_range = dec_range
         self.testing = testing
+        self.rNpN = rNpN
         # Lists to keep track of the bash files and of the copied immask.fits
         self.bash_files = []
         self.immask_files = []
         self.aux_parent_explist = None
 
     def setup_log(self):
-        """ Method to setup the log output and start with some information
-        """
-        # Check/create directory
-        try:
-            self.dir_log = os.path.join(self.dir_log, self.nite1)
-            os.makedirs(self.dir_log)
-        except OSError as exception:
-            if (exception.errno != errno.EEXIST):
-                raise
-                logging.error("ERROR when creating {0}".format(self.dir_log))
-        # Setup write out
-        lognm = "explist_and_copy_{0}_{1}.log".format(self.nite1, self.hhmmss)
-        logpath = os.path.join(self.dir_log, lognm)
-        logging.basicConfig(filename=logpath, level=logging.DEBUG,
-                            format="%(asctime)s - %(levelname)s - %(message)s")
+        ''' Method to setup the log output and start with some information
+        '''
+        # Need to take care of the 2 options (so far), to use a single night
+        # each time, or to input a list of expnum
+        if ((self.nite1 is not None) and (self.expnum_df is None)):
+            # Check/create directory
+            try:
+                self.dir_log = os.path.join(self.dir_log, self.nite1)
+                os.makedirs(self.dir_log)
+            except OSError as exception:
+                if (exception.errno != errno.EEXIST):
+                    raise
+                    t_e = 'ERROR when creating {0}'.format(self.dir_log)
+                    logging.error(t_e)
+            # Setup write out
+            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.nite1, 
+                                                          self.hhmmss)
+            logpath = os.path.join(self.dir_log, lognm)
+        elif ((self.nite1 is None) and (self.expnum_df is not None)):
+            # Check/create directory, using minimum and maximum expnum
+            try:
+                self.dir_log = os.path.join(self.dir_log, self.fnm_expnum)
+                os.makedirs(self.dir_log)
+            except OSError as exception:
+                if (exception.errno != errno.EEXIST):
+                    raise
+                    t_e = 'ERROR when creating {0}'.format(self.dir_log)
+                    logging.error(t_e)
+            # Setup write out
+            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.fnm_expnum, 
+                                                          self.hhmmss)
+            logpath = os.path.join(self.dir_log, lognm)
+        logging.basicConfig(
+            filename=logpath, level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s'
+        )
         # First information
-        logging.info("\nRunning on: {0}\n".format(socket.gethostname()))
-        logging.info("Script: {0}\n".format(os.path.basename(__file__)))
+        logging.info('\nRunning on: {0}\n'.format(socket.gethostname()))
+        logging.info('Script: {0}\n'.format(os.path.basename(__file__)))
 
     def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
                  parent_explist=None, outnm=None):
-        """ Method to get information from the exposure, related to assessments
+        ''' Method to get information from the exposure, related to assessments
         from the firstcut processing and from the initial values coming from
         the telescope.
         The table results will be saves as *.csv. But remember! there are gonna
@@ -292,95 +335,163 @@ class DBInfo():
         - outnm: string used as filename for the output exposure list
         Returns
         - the constructed dataframe
-        """
+        '''
         minEXPTIME = self.exptime
         minTEFF_g = self.teff_g
         minTEFF_riz = self.teff_riz
         parent_explist = self.dir_exp
         # Define the query which assumes last try to process as the valid
-        qi = "with z as ("
-        qi += "  select fcut.expnum, max(fcut.lastchanged_time) as evaltime"
-        qi += "  from firstcut_eval fcut"
-        qi += "  where fcut.analyst!='SNQUALITY'"
-        qi += "  group by fcut.expnum"
-        qi += "  )"
-        qi += "  select e.expnum, e.nite, e.airmass, e.obstype, e.date_obs,"
-        qi += "  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg, e.band,"
-        qi += "  e.exptime, val.pfw_attempt_id,"
-        qi += "  att.reqnum, att.attnum,"
-        qi += "  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness"
-        qi += "  from z, exposure e, firstcut_eval fcut, pfw_attempt_val val,"
-        qi += "  pfw_attempt att"
-        qi += "  where e.obstype='object'"
-        qi += "  and e.exptime>={0}".format(minEXPTIME)
-        qi += "  and e.nite between"
-        qi += " {0} and {1}".format(int(self.nite1), int(self.nite2))
-        if not (self.ra_range is None):
-            qi += " and e.radeg between {0} and {1}".format(*self.ra_range)
-        if not (self.dec_range is None):
-            qi += " and e.decdeg between {0} and {1}".format(*self.dec_range)
-        qi += "  and fcut.expnum=z.expnum"
-        qi += "  and fcut.expnum=e.expnum"
-        qi += "  and fcut.lastchanged_time=z.evaltime"
-        qi += "  and fcut.program='survey'"
-        qi += "  and fcut.accepted='True'"
-        qi += "  and fcut.processed='True'"
-        qi += "  and val.key='expnum'"
-        qi += "  and to_number(val.val,'999999')=e.expnum"
-        qi += "  and val.pfw_attempt_id=fcut.pfw_attempt_id"
-        qi += "  and att.id=val.pfw_attempt_id"
-        if self.testing:
-            qi += "  and rownum<6"
-        qi += "  order by e.nite"
+        # 2 cases: nite1, nite2 are input, and the other when expnum_df
+        if ((self.nite1 is not None) and (self.nite2 is not None) 
+            and (self.expnum_df is None)):
+            qi = 'with z as ('
+            qi += '  select fcut.expnum,'
+            qi += '  max(fcut.lastchanged_time) as evaltime'
+            qi += '  from firstcut_eval fcut'
+            qi += '  where fcut.analyst!=\'SNQUALITY\''
+            qi += '  group by fcut.expnum'
+            qi += '  )'
+            qi += '  select e.expnum, e.nite, e.airmass, e.obstype,'
+            qi += '  e.date_obs,'
+            qi += '  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg, e.band,'
+            qi += '  e.exptime, val.pfw_attempt_id,'
+            qi += '  att.reqnum, att.attnum,'
+            qi += '  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness'
+            qi += '  from z, exposure e, firstcut_eval fcut,'
+            qi += '  pfw_attempt_val val, pfw_attempt att'
+            qi += '  where e.obstype=\'object\''
+            qi += '  and e.exptime>={0}'.format(minEXPTIME)
+            qi += '  and e.nite between'
+            qi += ' {0} and {1}'.format(int(self.nite1), int(self.nite2))
+            if not (self.ra_range is None):
+                qi += ' and e.radeg between {0} and {1}'.format(*self.ra_range)
+            if not (self.dec_range is None):
+                qi += ' and e.decdeg between'
+                qi += ' {0} and {1}'.format(*self.dec_range)
+            qi += '  and fcut.expnum=z.expnum'
+            qi += '  and fcut.expnum=e.expnum'
+            qi += '  and fcut.lastchanged_time=z.evaltime'
+            qi += '  and fcut.program=\'survey\''
+            qi += '  and fcut.accepted=\'True\''
+            qi += '  and fcut.processed=\'True\''
+            qi += '  and val.key=\'expnum\''
+            qi += '  and to_number(val.val,\'999999\')=e.expnum'
+            qi += '  and val.pfw_attempt_id=fcut.pfw_attempt_id'
+            qi += '  and att.id=val.pfw_attempt_id'
+            if self.testing:
+                qi += '  and rownum<6'
+            qi += '  order by e.nite'
+        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+              and (self.nite2 is None)):
+            t_w = 'For the list of EXPNUM, RA and DEC constraints will not be'
+            t_w += ' applied. Neither minimum EXPTIME, nor ACCEPTED,'
+            t_w += ' nor PROGRAM'
+            logging.warning(t_w)
+            if (len(self.expnum_df.index) >= 1000):
+               # Do a loop, concatenate resulting dataframes 
+               logging.error('NOT IMPLEMENTED FOR N>= 1000')
+               exit(1)
+            else:
+                auxls = ','.join(map(str, self.expnum_df['EXPNUM'].values))
+                qi = 'with z as ('
+                qi += '  select fcut.expnum,'
+                qi += '  max(fcut.lastchanged_time) as evaltime'
+                qi += '  from firstcut_eval fcut'
+                qi += '  where fcut.analyst!=\'SNQUALITY\''
+                qi += '  group by fcut.expnum'
+                qi += '  )'
+                qi += '  select e.expnum, e.nite, e.airmass, e.obstype,'
+                qi += '  e.date_obs,'
+                qi += '  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg,'
+                qi += '  e.band,'
+                qi += '  e.exptime, val.pfw_attempt_id,'
+                qi += '  att.reqnum, att.attnum,'
+                qi += '  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness'
+                qi += '  from z, exposure e, firstcut_eval fcut,'
+                qi += '  pfw_attempt_val val, pfw_attempt att'
+                qi += '  where e.obstype=\'object\''
+                qi += '  and e.expnum in ({0})'.format(auxls)
+                qi += '  and fcut.expnum=z.expnum'
+                qi += '  and fcut.expnum=e.expnum'
+                qi += '  and fcut.lastchanged_time=z.evaltime'
+                qi += '  and fcut.processed=\'True\''
+                qi += '  and val.key=\'expnum\''
+                qi += '  and to_number(val.val,\'999999\')=e.expnum'
+                qi += '  and val.pfw_attempt_id=fcut.pfw_attempt_id'
+                qi += '  and att.id=val.pfw_attempt_id'
+                if self.testing:
+                    qi += '  and rownum<6'
+                qi += '  order by e.nite'
         #
         T = Toolbox()
         df0 = T.db_query(qi)
         if (len(df0.index) == 0):
-            noexp = "\tNo exposures were found for nite={0}".format(self.nite1)
-            noexp += "\n\tExiting\n{0}".format("="*80)
+            noexp = '\tNo exposures were found for nite={0}'.format(self.nite1)
+            noexp += '\n\tExiting\n{0}'.format('='*80)
             logging.warning(noexp)
             exit(0)
-        # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
-        c1 = (df0["BAND"] == "g") & (df0["T_EFF"] < minTEFF_g)
-        if np.any(c1.values):
-            df0.drop(c1, inplace=True)
-        for b in ["r", "i", "z"]:
-            cx = (df0["BAND"] == b) & (df0["T_EFF"] < minTEFF_riz)
-            if np.any(cx.values):
-                df0.drop(cx, inplace=True)
+        if ((self.nite1 is not None) and (self.nite2 is not None) 
+            and (self.expnum_df is None)):
+            # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
+            c1 = (df0['BAND'] == 'g') & (df0['T_EFF'] < minTEFF_g)
+            if np.any(c1.values):
+                df0.drop(c1, inplace=True)
+            for b in ['r', 'i', 'z']:
+                cx = (df0['BAND'] == b) & (df0['T_EFF'] < minTEFF_riz)
+                if np.any(cx.values):
+                    df0.drop(cx, inplace=True)
+        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+              and (self.nite2 is None)):
+            t_w = 'For the list of EXPNUM, no cut on T_EFF will be performed'
+            logging.warning(t_w)
+        t_i = 'In case T_EFF is NaN, EXPNUM will be removed'
+        logging.info(t_i)
         # Drop rows where T_EFF is NaN
-        df0.dropna(axis=0, subset=["T_EFF"], inplace=True)
+        df0.dropna(axis=0, subset=['T_EFF'], inplace=True)
         # Add a new column with a more precise MJD value
-        mjd_aux = map(T.isot2mjd, df0["DATE_OBS"])
+        mjd_aux = map(T.isot2mjd, df0['DATE_OBS'])
         # Pandas assign appeared on version 0.16
         if (float(str(pd.__version__)[:4]) >= 0.16):
             df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
         else:
-            df0.loc[:, "MJD_OBS_ADD"] = pd.Series(mjd_aux, index=df0.index)
+            df0.loc[:, 'MJD_OBS_ADD'] = pd.Series(mjd_aux, index=df0.index)
         # Pandas sort_values appeared on v 0.17
         if (float(str(pd.__version__)[:4]) >= 0.17):
             # Re-sort for nite and band
-            df0.sort_values(["NITE", "BAND", "EXPNUM"], ascending=True,
+            df0.sort_values(['NITE', 'BAND', 'EXPNUM'], ascending=True,
                             inplace=True)
         else:
-            df0.sort(["NITE", "BAND", "EXPNUM"], ascending=True,
+            df0.sort(['NITE', 'BAND', 'EXPNUM'], ascending=True,
                      inplace=True)
         # Re-index
         df0 = df0.reset_index(drop=True)
         # Check/create the EXPLIST directory
-        try:
-            parent_explist = os.path.join(parent_explist, self.nite1)
-            os.makedirs(parent_explist)
-        except OSError as exception:
-            if (exception.errno != errno.EEXIST):
-                raise
-                logging.error("ERROR when creating {0}".format(parent_explist))
+        if ((self.nite1 is not None) and (self.nite2 is not None) 
+            and (self.expnum_df is None)):
+            try:
+                parent_explist = os.path.join(parent_explist, self.nite1)
+                os.makedirs(parent_explist)
+            except OSError as exception:
+                if (exception.errno != errno.EEXIST):
+                    raise
+                    t_e = 'ERROR when creating {0}'.format(parent_explist)
+                    logging.error(t_e)
+        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+              and (self.nite2 is None)):
+            try:
+                parent_explist = os.path.join(parent_explist, self.fnm_expnum)
+                os.makedirs(parent_explist)
+            except OSError as exception:
+                if (exception.errno != errno.EEXIST):
+                    raise
+                    t_e = 'ERROR when creating {0}'.format(parent_explist)
+                    logging.error(t_e)
         # Store parent_explist for later
         self.aux_parent_explist = parent_explist
         # Write out the table, one slightly different filename for each
         # time we query the DB
         # The condition for prefix=None is now on the __init__
-        aux_out= "{0}_{1}_{2}.csv".format(self.prefix, self.nite1, self.hhmmss)
+        aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.nite1, self.hhmmss)
         #
         # Double check here past:  os.path.join(parent_explist, outnm)
         #
@@ -388,9 +499,9 @@ class DBInfo():
         df0.to_csv(outnm, index=False, header=True)
         return df0
 
-    def exp_mask(self, size_copy=None, root_path="/archive_data/desarchive",
+    def exp_mask(self, size_copy=None, root_path='/archive_data/desarchive',
                  parent_immask=None, parent_scp=None, desdm_user=None):
-        """ Method to get the filenames and paths for the red_immask
+        ''' Method to get the filenames and paths for the red_immask
         files associated to each CCD, for the previously selected exposures.
         After that, bash files are written.
         Inputs
@@ -405,7 +516,7 @@ class DBInfo():
         user is None, get the one in the session
         Outputs
         - boolean when ends
-        """
+        '''
         size_copy = self.Nexpnum
         parent_immask = self.dir_immask
         parent_scp = self.dir_bash
@@ -430,26 +541,26 @@ class DBInfo():
             if root.count(os.sep) >= dir_depth:
                 del dirs[:]
             for fnm in files:
-                if ("{0}_{1}".format(self.prefix, self.nite1) in fnm):
+                if ('{0}_{1}'.format(self.prefix, self.nite1) in fnm):
                     counter_files += 1
                     try:
                         aux_fnm = os.path.join(root, fnm)
-                        tmp = pd.read_csv(aux_fnm, engine="python")
+                        tmp = pd.read_csv(aux_fnm, engine='python')
                         dfcomp = dfcomp.append(tmp)
                     except:
-                        msg = "Cannot load {0}".format(fnm)
+                        msg = 'Cannot load {0}'.format(fnm)
                         logging.error(msg)
         # If ONLY ONE file exists, then that file is copied to be 
         # a newdata_ file
         #
         if (counter_files == 1):
-            newaux = "newdata_{0}".format(self.nite1)
-            newaux += "_{0}.csv".format(self.hhmmss)
+            newaux = 'newdata_{0}'.format(self.nite1)
+            newaux += '_{0}.csv'.format(self.hhmmss)
             newaux = os.path.join(root, newaux)
             orig = os.path.join(root, fnm)
             # Copy: explist to newdata 
             shutil.copy2(orig, newaux)
-            logging.info("Saving newdata: {0}".format(newaux))
+            logging.info('Saving newdata: {0}'.format(newaux))
             # copy2 preserves metadata
             #
         # Compare dfexp (list of retrieved expnum from the querys) with 
@@ -462,16 +573,16 @@ class DBInfo():
         dfcomp = None
         #
         if df_tmp.empty:
-            txt_emp = "An error occurred when checking for new data. None was"
-            txt_emp += " encountered"
+            txt_emp = 'An error occurred when checking for new data. None was'
+            txt_emp += ' encountered'
             logging.error(txt_emp)    
             exit(1)
         else:
             # EUPS has only up to pandas 0.15, then I can not use
             # drop_duplicates with keep=False
             # Therefore, use a new method
-            counter = collections.Counter(df_tmp["EXPNUM"].values)
-            uni_exp = np.unique(df_tmp["EXPNUM"].values)
+            counter = collections.Counter(df_tmp['EXPNUM'].values)
+            uni_exp = np.unique(df_tmp['EXPNUM'].values)
             new_exp = []
             for e in uni_exp:
                 if (counter[e] == 1):
@@ -483,15 +594,15 @@ class DBInfo():
                 dfexp = dfexp.reset_index(drop=True)
                 # Save this because is containing ONLY new data
                 # The first table to be saved was about 35 lines above
-                newdt = "newdata_{0}_{1}.csv".format(self.nite1, self.hhmmss)
+                newdt = 'newdata_{0}_{1}.csv'.format(self.nite1, self.hhmmss)
                 newdt = os.path.join(self.aux_parent_explist, newdt)
                 dfexp.to_csv(newdt, index=False, header=True)
-                logging.info("Saving newdata: {0}".format(newdt))
+                logging.info('Saving newdata: {0}'.format(newdt))
             else:
                 dfexp = None
-                msg_nonew = "No new exposures at this time, compared with"
-                msg_nonew += " previous queries. Exiting"
-                print "No new data. Exiting!"
+                msg_nonew = 'No new exposures at this time, compared with'
+                msg_nonew += ' previous queries. Exiting'
+                print 'No new data. Exiting!'
                 logging.warning(msg_nonew)
                 exit(0)
                 # Keep the above exit(0)
@@ -502,15 +613,15 @@ class DBInfo():
             dfpath = pd.DataFrame()
             for index, row in dfexp.iterrows():
                 gc.collect()
-                qp = "select im.expnum, im.pfw_attempt_id, fai.path,"
-                qp += "  fai.filename, fai.compression"
-                qp += "  from image im, file_archive_info fai"
-                qp += "  where "
-                qp += "im.pfw_attempt_id={0}".format(row["PFW_ATTEMPT_ID"])
-                qp += "  and im.filetype='red_immask'"
-                qp += "  and im.expnum={0}".format(row["EXPNUM"])
-                qp += "  and fai.filename=im.filename"
-                qp += "  order by fai.filename"
+                qp = 'select im.expnum, im.pfw_attempt_id, fai.path,'
+                qp += '  fai.filename, fai.compression'
+                qp += '  from image im, file_archive_info fai'
+                qp += '  where '
+                qp += 'im.pfw_attempt_id={0}'.format(row['PFW_ATTEMPT_ID'])
+                qp += '  and im.filetype=\'red_immask\''
+                qp += '  and im.expnum={0}'.format(row['EXPNUM'])
+                qp += '  and fai.filename=im.filename'
+                qp += '  order by fai.filename'
                 dfaux = TT.db_query(qp)
                 dfpath = dfpath.append(dfaux)
             #
@@ -521,72 +632,72 @@ class DBInfo():
             except OSError as exception:
                 if (exception.errno != errno.EEXIST):
                     raise
-                    logging.error("ERROR when creating {0}".format(parent_scp))
+                    logging.error('ERROR when creating {0}'.format(parent_scp))
             # Write bash SCP in packs of N exposures each. chunk_N() returns a
             # list of tuples
-            expnum = dfexp["EXPNUM"].values
+            expnum = dfexp['EXPNUM'].values
             Nexp = map(np.array, TT.chunk_N(expnum, size_copy))
-            lineout = ["#!/bin/bash \n"]
-            str0 = "scp"
-            str0 += " {0}@deslogin.cosmology.illinois.edu:".format(desdm_user)
+            lineout = ['#!/bin/bash \n']
+            str0 = 'scp'
+            str0 += ' {0}@deslogin.cosmology.illinois.edu:'.format(desdm_user)
             for write_exp in Nexp:
                 # Remove the filling NaN
                 write_exp = write_exp[np.logical_not(np.isnan(write_exp))]
                 # Account for possible float
                 write_exp = np.array(map(int, write_exp))
                 for idx, row in dfpath.iterrows():
-                    if (row["EXPNUM"] in write_exp):
+                    if (row['EXPNUM'] in write_exp):
                         cond = (
-                            (dfexp["EXPNUM"] == row["EXPNUM"]) &
-                            (dfexp["PFW_ATTEMPT_ID"] == row["PFW_ATTEMPT_ID"])
+                            (dfexp['EXPNUM'] == row['EXPNUM']) &
+                            (dfexp['PFW_ATTEMPT_ID'] == row['PFW_ATTEMPT_ID'])
                         )
                         # Pending: check for unique req, att
-                        req = dfexp.loc[cond, "REQNUM"].values[0]
-                        att = dfexp.loc[cond, "ATTNUM"].values[0]
-                        aux_fnm = row["FILENAME"] + row["COMPRESSION"]
+                        req = dfexp.loc[cond, 'REQNUM'].values[0]
+                        att = dfexp.loc[cond, 'ATTNUM'].values[0]
+                        aux_fnm = row['FILENAME'] + row['COMPRESSION']
                         #
                         # Here the the change of immask filename is done
                         #
                         destin = TT.to_path(parent=parent_immask,
                                             nite=self.nite1,
-                                            expnum=row["EXPNUM"],
+                                            expnum=row['EXPNUM'],
                                             fnm=aux_fnm,
                                             reqnum=req,
                                             attnum=att,
                                             modify_fnm=True,
-                                            str_run="r4p4")
-                        argu = [root_path, row["PATH"], row["FILENAME"]]
+                                            str_run=self.rNpN)
+                        argu = [root_path, row['PATH'], row['FILENAME']]
                         tmp = str0
                         tmp += os.path.join(*argu)
-                        tmp += row["COMPRESSION"] + " "
+                        tmp += row['COMPRESSION'] + ' '
                         tmp += destin
-                        tmp += "\n"
+                        tmp += '\n'
                         lineout.append(tmp)
                         # Store the immask file entire path
                         self.immask_files.append(destin)
                 # Write out the chunk files to be copied
-                outfnm = "copy_{0}_{1}t{2}.sh".format(self.nite1, write_exp[0],
+                outfnm = 'copy_{0}_{1}t{2}.sh'.format(self.nite1, write_exp[0],
                                                         write_exp[-1])
                 outfnm = os.path.join(parent_scp, outfnm)
-                with open(outfnm, "w+") as f:
+                with open(outfnm, 'w+') as f:
                     f.writelines(lineout)
-                logging.info("\twritten bash file {0}".format(outfnm))
+                logging.info('\twritten bash file {0}'.format(outfnm))
                 self.bash_files.append(outfnm)
-                lineout = ["#!/bin/bash \n"]
+                lineout = ['#!/bin/bash \n']
             return True
 
     def run_scp(self):
-        """ Method to run the created bash files for remote copy
-        """
+        ''' Method to run the created bash files for remote copy
+        '''
         Tbox = Toolbox()
         if (len(self.bash_files) > 0):
             for sh in self.bash_files:
                 # Make the file executable
                 root_path, fname= Tbox.split_path(sh)
-                cmd = "chmod +x {0}".format(sh)
+                cmd = 'chmod +x {0}'.format(sh)
                 pA = subprocess.call(shlex.split(cmd))
                 # Run the bash file
-                cmdscp = shlex.split("bash {0}".format(sh))
+                cmdscp = shlex.split('bash {0}'.format(sh))
                 pB = subprocess.Popen(cmdscp,
                                       shell=False,
                                       stdin=subprocess.PIPE,
@@ -595,100 +706,116 @@ class DBInfo():
                                       universal_newlines=True)
                 # outM, errM = pB.communicate()
                 pB.wait()
-                logging.info("Ended run of {0}".format(fname))
+                logging.info('Ended run of {0}'.format(fname))
         return True
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Parse of arguments
-    intro = "Script to detect the last night (or other) already processed"
-    intro += " exposures, and then create bash executable files for remote"
-    intro += " copy."
+    intro = 'Script to detect the last night (or other) already processed'
+    intro += ' exposures, and then create bash executable files for remote'
+    intro += ' copy.'
     abc = argparse.ArgumentParser(description=intro)
     # Optional
-    txt1 = "Night to be queried"
-    abc.add_argument("--nite", help=txt1, metavar="")
+    # Set the way the main set of science files will be selected: night based
+    # or exposure number based. I defined a mutual-exclusive group for the
+    # 2 options, 'breed'
+    breed = abc.add_mutually_exclusive_group(required=True)
+    txt1a = 'Night to be queried. RA and DEC constraints are applied. Default'
+    txt1a += ' value is last night'
+    breed.add_argument('--nite', help=txt1a, metavar='YYYYMMDD')
+    txt1b = 'Set of exposure numbers to be used. Input a 1-columns text file'
+    txt1b += ' having one EXPNUM per line.'
+    txt1b += ' RA and DEC constraints are not applied.'
+    breed.add_argument('--exp', help=txt1b, metavar='filename')
     #
-    immask_aux = "/pnfs/des/persistent/wsdiff/exp"
-    txt2 = "Parent folder to harbor immask files per CCD."
-    txt2 += " Default: {0}".format(immask_aux)
-    abc.add_argument("--d_msk", help=txt2, metavar="", default=immask_aux)
+    immask_aux = '/pnfs/des/persistent/wsdiff/exp'
+    txt2 = 'Parent folder to harbor immask files per CCD.'
+    txt2 += ' Default: {0}'.format(immask_aux)
+    abc.add_argument('--d_msk', help=txt2, metavar='', default=immask_aux)
     #
-    txt3 = "Parent folder to harbor the exposure lists (various files)."
-    txt3 += " Each night has a different folder."
-    txt3 += " Default: <current_folder>/explist/"
-    abc.add_argument("--d_exp", help=txt3, metavar="")
+    txt3 = 'Parent folder to harbor the exposure lists (various files).'
+    txt3 += ' Each night has a different folder.'
+    txt3 += ' Default: <current_folder>/explist/'
+    abc.add_argument('--d_exp', help=txt3, metavar='')
     #
-    txt4 = "Parent folder to harbor the bash files for remote copy."
-    txt4 += " Each night in its own folder"
-    txt4 += " Default: <current_folder>/bash_scp/"
-    abc.add_argument("--d_bash", help=txt4, metavar="")
+    txt4 = 'Parent folder to harbor the bash files for remote copy.'
+    txt4 += ' Each night in its own folder'
+    txt4 += ' Default: <current_folder>/bash_scp/'
+    abc.add_argument('--d_bash', help=txt4, metavar='')
     #
-    txt12 = "Directory where to store the LOGs. One folder per night."
-    txt12 = " Default: <current_directory>/logs"
-    abc.add_argument("--d_log", help=txt12, metavar="")
+    txt12 = 'Directory where to store the LOGs. One folder per night.'
+    txt12 = ' Default: <current_directory>/logs'
+    abc.add_argument('--d_log', help=txt12, metavar='')
     #
     Nmax = 20
-    txt5 = "Number of exposures to be included in each bash file to be copied."
-    txt5 += " Default: {0}".format(Nmax)
-    abc.add_argument("--N", help=txt5, metavar="", default=Nmax, type=int)
+    txt5 = 'Number of exposures to be included in each bash file to be copied.'
+    txt5 += ' Default: {0}'.format(Nmax)
+    abc.add_argument('--N', help=txt5, metavar='', default=Nmax, type=int)
     #
     user_aux = os.getlogin()
-    txt6 = "Username to be employed for connect to DESDM."
-    txt6 += " Default: actual username, {0}".format(user_aux)
-    abc.add_argument("--user", help=txt6, metavar="", default=user_aux)
+    txt6 = 'Username to be employed for connect to DESDM.'
+    txt6 += ' Default: actual username, {0}'.format(user_aux)
+    abc.add_argument('--user', help=txt6, metavar='', default=user_aux)
     #
-    txt7 = "Prefix to be used on the written exposure lists. The default is"
-    txt7 += " explist, so the final names are explist_<nite>_<HHhMMmSSs>.csv"
-    txt7 += " where HHh MMm SSs is the time at which the query was saved"
-    abc.add_argument("--pref", help=txt7, metavar="")
+    txt7 = 'Prefix to be used on the written exposure lists. The default is'
+    txt7 += ' explist, so the final names are explist_<nite>_<HHhMMmSSs>.csv'
+    txt7 += ' where HHh MMm SSs is the time at which the query was saved'
+    abc.add_argument('--pref', help=txt7, metavar='')
     #
     time_aux = 30.
-    txt8 = "Minimum exposure time for the images."
-    txt8 += " Default: {0}".format(time_aux)
-    abc.add_argument("--exptime", help=txt8, metavar="", default=time_aux,
+    txt8 = 'Minimum exposure time for the images.'
+    txt8 += ' Default: {0}'.format(time_aux)
+    abc.add_argument('--exptime', help=txt8, metavar='', default=time_aux,
                      type=float)
     #
     teff_g_aux = 0.2
-    txt9 = "Minimum T_EFF for g-band. Default: {0}".format(teff_g_aux)
-    abc.add_argument("--teff_g", help=txt9, metavar="", default=teff_g_aux,
+    txt9 = 'Minimum T_EFF for g-band. Default: {0}'.format(teff_g_aux)
+    abc.add_argument('--teff_g', help=txt9, metavar='', default=teff_g_aux,
                      type=float)
     #
     teff_riz_aux = 0.3
-    txt10 = "Minimum T_EFF for r, i, and z-bands."
-    txt10 += " Default: {0}".format(teff_riz_aux)
-    abc.add_argument("--teff_riz", help=txt10, metavar="",
+    txt10 = 'Minimum T_EFF for r, i, and z-bands.'
+    txt10 += ' Default: {0}'.format(teff_riz_aux)
+    abc.add_argument('--teff_riz', help=txt10, metavar='',
                      default=teff_riz_aux, type=float)
     #
     tmp_ra = [20., 40.]
-    txt11 = "Minimum and maximum RA (degrees), separated by space."
-    txt11 += " Default: {0} {1}".format(*tmp_ra)
-    abc.add_argument("--ra", help=txt11, nargs=2, type=float, default=tmp_ra)
+    txt11 = 'Minimum and maximum RA (degrees), separated by space.'
+    txt11 += ' Default: {0} {1}'.format(*tmp_ra)
+    abc.add_argument('--ra', help=txt11, nargs=2, type=float, default=tmp_ra)
     #
     tmp_dec = [-90., -10.]
-    txt12 = "Minimum and maximum DEC (degrees), separated by space."
-    txt12 += " Default: {0} {1}".format(*tmp_dec)
-    abc.add_argument("--dec", help=txt12, nargs=2, type=float, default=tmp_dec)
+    txt12 = 'Minimum and maximum DEC (degrees), separated by space.'
+    txt12 += ' Default: {0} {1}'.format(*tmp_dec)
+    abc.add_argument('--dec', help=txt12, nargs=2, type=float, default=tmp_dec)
     #
-    txtN = "Is this a test run? This flag allows to query only 5 exposures"
-    abc.add_argument("--test", help=txtN, action="store_true")
+    aux_rp = 'r4p4'
+    txt13 = 'For renaming the \'filetype=red_immask\' files, which rNpN to'
+    txt13 += ' use. Default: {0}'.format(aux_rp)
+    abc.add_argument('--rp', help=txt13, default=aux_rp)
+    #
+    txtN = 'Is this a test run? This flag allows to query only 5 exposures'
+    abc.add_argument('--test', help=txtN, action='store_true')
     # Recover args
     val = abc.parse_args()
     kw = dict()
-    kw["username"] = val.user
-    kw["nite"] = val.nite
-    kw["exptime"] = val.exptime
-    kw["Nexpnum"] = val.N
-    kw["dir_bash"] = val.d_bash
-    kw["dir_exp"] = val.d_exp
-    kw["dir_immask"] = val.d_msk
-    kw["dir_log"] = val.d_log
-    kw["prefix"] = val.pref
-    kw["teff_g"] = val.teff_g
-    kw["teff_riz"] = val.teff_riz
-    kw["ra_range"] = val.ra
-    kw["dec_range"] = val.dec
-    kw["testing"] = val.test
+    kw['username'] = val.user
+    kw['nite'] = val.nite
+    kw['expnum_fnm'] = val.exp
+    kw['exptime'] = val.exptime
+    kw['Nexpnum'] = val.N
+    kw['dir_bash'] = val.d_bash
+    kw['dir_exp'] = val.d_exp
+    kw['dir_immask'] = val.d_msk
+    kw['dir_log'] = val.d_log
+    kw['prefix'] = val.pref
+    kw['teff_g'] = val.teff_g
+    kw['teff_riz'] = val.teff_riz
+    kw['ra_range'] = val.ra
+    kw['dec_range'] = val.dec
+    kw['rNpN'] = val.rp
+    kw['testing'] = val.test
     #
     # Calling
     DB = DBInfo(**kw)
@@ -698,23 +825,23 @@ if __name__ == "__main__":
     ended_ok = DB.exp_mask()
     # Remote copy
     if ended_ok:
-        logging.info("Run scp transfer")
+        logging.info('Run scp transfer')
         DB.run_scp()
     # Save a plain text list of the copied files, to be used in case the
     # sumbission fails and we need to only run query/scp again.
-    backup_list = "immaskFiles_{0}_{1}.txt".format(DB.nite1, DB.hhmmss)
+    backup_list = 'immaskFiles_{0}_{1}.txt'.format(DB.nite1, DB.hhmmss)
     # Add a safe step here
     try:
         backup_list = os.path.join(DB.dir_log, backup_list)
-        with open(backup_list, "w+") as b:
+        with open(backup_list, 'w+') as b:
             for im in DB.immask_files:
-                b.write("{0}\n".format(im))
+                b.write('{0}\n'.format(im))
     except Exception as e:
         logging.error(str(e))
-        info1 = "Trying to write {0}".format(backup_list)
-        info1 += " in the current directory"
+        info1 = 'Trying to write {0}'.format(backup_list)
+        info1 += ' in the current directory'
         logging.info(info1)
-        with open(backup_list, "w+") as b:
+        with open(backup_list, 'w+') as b:
             for im in DB.immask_files:
-                b.write("{0}\n".format(im))
-    logging.info("Backup file saved on cwd: {0}".format(backup_list))
+                b.write('{0}\n'.format(im))
+    logging.info('Backup file saved on cwd: {0}'.format(backup_list))
