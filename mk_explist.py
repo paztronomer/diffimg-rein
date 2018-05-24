@@ -39,6 +39,10 @@ except:
 # =============================
 # PENDINGS
 # - keep a log of processed files
+# - create a list of the used self.* variables, per class
+# - capture all exceptions, print them besides
+#   except: # catch *all* exceptions
+#       e = sys.exc_info()[0]
 # =============================
 
 class Toolbox():
@@ -67,7 +71,7 @@ class Toolbox():
         - fnm: actual filename of immask files
         - modify_fnm: whether to change the ReqnumAttnum string on filename
         - str_run: string to replace the ReqnumAttnum if modify_fn=True. It is
-        'r4p4' for Y5N 
+        'r4p4' for Y5N
         Returns
         - string with the destination path
         '''
@@ -186,7 +190,7 @@ class Toolbox():
 
 class DBInfo():
     def __init__(self, username=None, nite=None, expnum_fnm=None,
-                 exptime=None, Nexpnum=None, 
+                 exptime=None, Nexpnum=None,
                  dir_bash=None, dir_exp=None, dir_immask=None, dir_log=None,
                  prefix=None, teff_g=None, teff_riz=None, ra_range=None,
                  dec_range=None, testing=None, rNpN=None):
@@ -294,7 +298,7 @@ class DBInfo():
                     t_e = 'ERROR when creating {0}'.format(self.dir_log)
                     logging.error(t_e)
             # Setup write out
-            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.nite1, 
+            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.nite1,
                                                           self.hhmmss)
             logpath = os.path.join(self.dir_log, lognm)
         elif ((self.nite1 is None) and (self.expnum_df is not None)):
@@ -308,7 +312,7 @@ class DBInfo():
                     t_e = 'ERROR when creating {0}'.format(self.dir_log)
                     logging.error(t_e)
             # Setup write out
-            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.fnm_expnum, 
+            lognm = 'explist_and_copy_{0}_{1}.log'.format(self.fnm_expnum,
                                                           self.hhmmss)
             logpath = os.path.join(self.dir_log, lognm)
         logging.basicConfig(
@@ -342,7 +346,12 @@ class DBInfo():
         parent_explist = self.dir_exp
         # Define the query which assumes last try to process as the valid
         # 2 cases: nite1, nite2 are input, and the other when expnum_df
-        if ((self.nite1 is not None) and (self.nite2 is not None) 
+        #
+        #
+        # HERE! do the query in a more elegant way, for the 2 cases
+        #
+        #
+        if ((self.nite1 is not None) and (self.nite2 is not None)
             and (self.expnum_df is None)):
             qi = 'with z as ('
             qi += '  select fcut.expnum,'
@@ -381,14 +390,14 @@ class DBInfo():
             if self.testing:
                 qi += '  and rownum<6'
             qi += '  order by e.nite'
-        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+        elif ((self.expnum_df is not None) and (self.nite1 is None)
               and (self.nite2 is None)):
             t_w = 'For the list of EXPNUM, RA and DEC constraints will not be'
             t_w += ' applied. Neither minimum EXPTIME, nor ACCEPTED,'
             t_w += ' nor PROGRAM'
             logging.warning(t_w)
             if (len(self.expnum_df.index) >= 1000):
-               # Do a loop, concatenate resulting dataframes 
+               # Do a loop, concatenate resulting dataframes
                logging.error('NOT IMPLEMENTED FOR N>= 1000')
                exit(1)
             else:
@@ -430,7 +439,7 @@ class DBInfo():
             noexp += '\n\tExiting\n{0}'.format('='*80)
             logging.warning(noexp)
             exit(0)
-        if ((self.nite1 is not None) and (self.nite2 is not None) 
+        if ((self.nite1 is not None) and (self.nite2 is not None)
             and (self.expnum_df is None)):
             # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
             c1 = (df0['BAND'] == 'g') & (df0['T_EFF'] < minTEFF_g)
@@ -440,7 +449,7 @@ class DBInfo():
                 cx = (df0['BAND'] == b) & (df0['T_EFF'] < minTEFF_riz)
                 if np.any(cx.values):
                     df0.drop(cx, inplace=True)
-        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+        elif ((self.expnum_df is not None) and (self.nite1 is None)
               and (self.nite2 is None)):
             t_w = 'For the list of EXPNUM, no cut on T_EFF will be performed'
             logging.warning(t_w)
@@ -466,7 +475,7 @@ class DBInfo():
         # Re-index
         df0 = df0.reset_index(drop=True)
         # Check/create the EXPLIST directory
-        if ((self.nite1 is not None) and (self.nite2 is not None) 
+        if ((self.nite1 is not None) and (self.nite2 is not None)
             and (self.expnum_df is None)):
             try:
                 parent_explist = os.path.join(parent_explist, self.nite1)
@@ -482,7 +491,7 @@ class DBInfo():
             # time we query the DB
             # The condition for prefix=None is now on the __init__
             aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.nite1, self.hhmmss)
-        elif ((self.expnum_df is not None) and (self.nite1 is None) 
+        elif ((self.expnum_df is not None) and (self.nite1 is None)
               and (self.nite2 is None)):
             try:
                 parent_explist = os.path.join(parent_explist, self.fnm_expnum)
@@ -541,12 +550,17 @@ class DBInfo():
         # Iterate over the folder harboring the tables from the past queries.
         # Construct a tmp dataframe to compare against
         #
-        #
-        # HERE: I need to do this if/elif a more elegant solution!
-        #
-        #
-        #
-        if (self.nite1 is not None) and (self.expnum_df is None): 
+        # NOTE: for the input of data we have implemented 2 options
+        # 1) by the input night, in which case the naming schema uses the
+        # nite string as part of the naming
+        # 2) by the list of exposure, in which case the maximum and minimum
+        # exposure numbers are used for naming
+        if (self.nite1 is not None) and (self.expnum_df is None):
+            aux_naming = self.nite1
+        elif (self.nite1 is None) and (self.expnum_df is not None):
+            aux_naming = self.fnm_expnum
+
+        if (self.nite1 is not None) and (self.expnum_df is None):
             dir_depth = 0
             dfcomp = pd.DataFrame()
             counter_files = 0
@@ -554,34 +568,36 @@ class DBInfo():
                 if root.count(os.sep) >= dir_depth:
                     del dirs[:]
                 for fnm in files:
-                    if ('{0}_{1}'.format(self.prefix, self.nite1) in fnm):
+                    if ('{0}_{1}'.format(self.prefix, aux_naming) in fnm):
                         counter_files += 1
                         try:
                             aux_fnm = os.path.join(root, fnm)
                             tmp = pd.read_csv(aux_fnm, engine='python')
                             dfcomp = dfcomp.append(tmp)
                         except:
+                            e = sys.exc_info()[0]
+                            logging.error(e)
                             msg = 'Cannot load {0}'.format(fnm)
                             logging.error(msg)
-            # If ONLY ONE file exists, then that file is copied to be 
+            # If ONLY ONE file exists, then that file is copied to be
             # a newdata_ file
             #
             if (counter_files == 1):
-                newaux = 'newdata_{0}'.format(self.nite1)
+                newaux = 'newdata_{0}'.format(aux_naming)
                 newaux += '_{0}.csv'.format(self.hhmmss)
                 newaux = os.path.join(root, newaux)
                 orig = os.path.join(root, fnm)
-                # Copy: explist to newdata 
+                # Copy: explist to newdata
+                # NOTE: copy2 preserves metadata
                 shutil.copy2(orig, newaux)
                 logging.info('Saving newdata: {0}'.format(newaux))
-                # copy2 preserves metadata
                 #
-            # Compare dfexp (list of retrieved expnum from the querys) with 
-            # dfcomp (all the info in the already saved files) and if there 
+            # Compare dfexp (list of retrieved expnum from the querys) with
+            # dfcomp (all the info in the already saved files) and if there
             # are new entries, continue. If not, then stop and exit
             #
             # There is no need to concatenate [dfexp, dfcomp] because dfexp was
-            # already written on disk, so its already inside dfcomp
+            # already written on disk, so it is already contained inside dfcomp
             df_tmp = dfcomp.reset_index(drop=True)
             t_i = 'Only {0} exposures passed the criteria'.format(len(df_tmp.index))
             logging.info(t_i)
@@ -590,26 +606,36 @@ class DBInfo():
             if df_tmp.empty:
                 txt_emp = 'An error occurred when checking for new data. None was'
                 txt_emp += ' encountered'
-                logging.error(txt_emp)    
+                logging.error(txt_emp)
                 exit(1)
             else:
                 # EUPS has only up to pandas 0.15, then I can not use
-                # drop_duplicates with keep=False
-                # Therefore, use a new method
-                counter = collections.Counter(df_tmp['EXPNUM'].values)
-                uni_exp = np.unique(df_tmp['EXPNUM'].values)
-                new_exp = []
-                for e in uni_exp:
-                    if (counter[e] == 1):
-                        new_exp.append(e)
+                # drop_duplicates with keep=False. The option keep=False
+                # removes all duplicted items, keeping only the items with 1
+                # occurence
+                # Therefore, use a new method for version <= 0.17
+                # Here I need to walk ONLY through the NON-duplicated expnum
+                if (float(pd.__version__[:4]) >= 0.17):
+                    t_i = 'pandas version {0}'.format(pd.__version__)
+                    t_i += ' supports drop_duplicates with keep=False'
+                    logging.info(t_i)
+                    new_exp = df_tmp['EXPNUM'].drop_duplicates(keep=False)
+                    new_exp = list(df_tmp.values)
+                else:
+                    counter = collections.Counter(df_tmp['EXPNUM'].values)
+                    uni_exp = np.unique(df_tmp['EXPNUM'].values)
+                    new_exp = []
+                    for e in uni_exp:
+                        if (counter[e] == 1):
+                            new_exp.append(e)
                 if (len(new_exp) > 0):
                     # Replace dataframe by the one containing only new entries
                     dfexp = None
-                    dfexp = df_tmp[df_tmp.EXPNUM.isin(new_exp)]
+                    dfexp = df_tmp[df_tmp['EXPNUM'].isin(new_exp)]
                     dfexp = dfexp.reset_index(drop=True)
                     # Save this because is containing ONLY new data
                     # The first table to be saved was about 35 lines above
-                    newdt = 'newdata_{0}_{1}.csv'.format(self.nite1, self.hhmmss)
+                    newdt = 'newdata_{0}_{1}.csv'.format(aux_naming, self.hhmmss)
                     newdt = os.path.join(self.aux_parent_explist, newdt)
                     dfexp.to_csv(newdt, index=False, header=True)
                     logging.info('Saving newdata: {0}'.format(newdt))
@@ -621,8 +647,18 @@ class DBInfo():
                     logging.warning(msg_nonew)
                     exit(0)
                     # Keep the above exit(0)
+
+                #
+                #
+                # HERE!!!
+                #
+                #
                 # The above allows us to get the unique elements and thus use them
                 # in the generation of bash files
+                #
+                #
+                # Generation of BASH SCP scripts
+                #
                 #
                 # Need to query every pair pfw_attempt_id-expnum
                 dfpath = pd.DataFrame()
@@ -699,7 +735,7 @@ class DBInfo():
                     logging.info('\twritten bash file {0}'.format(outfnm))
                     self.bash_files.append(outfnm)
                     lineout = ['#!/bin/bash \n']
-        elif (self.nite1 is None) and (self.expnum_df is not None): 
+        elif (self.nite1 is None) and (self.expnum_df is not None):
             dir_depth = 0
             dfcomp = pd.DataFrame()
             counter_files = 0
@@ -718,7 +754,7 @@ class DBInfo():
                         except:
                             msg = 'Cannot load {0}'.format(fnm)
                             logging.error(msg)
-            # If ONLY ONE file exists, then that file is copied to be 
+            # If ONLY ONE file exists, then that file is copied to be
             # a newdata_ file
             #
             if (counter_files == 1):
@@ -726,13 +762,13 @@ class DBInfo():
                 newaux += '_{0}.csv'.format(self.hhmmss)
                 newaux = os.path.join(root, newaux)
                 orig = os.path.join(root, fnm)
-                # Copy: explist to newdata 
+                # Copy: explist to newdata
                 shutil.copy2(orig, newaux)
                 logging.info('Saving newdata: {0}'.format(newaux))
                 # copy2 preserves metadata
                 #
-            # Compare dfexp (list of retrieved expnum from the querys) with 
-            # dfcomp (all the info in the already saved files) and if there 
+            # Compare dfexp (list of retrieved expnum from the querys) with
+            # dfcomp (all the info in the already saved files) and if there
             # are new entries, continue. If not, then stop and exit
             #
             # There is no need to concatenate [dfexp, dfcomp] because dfexp was
@@ -745,7 +781,7 @@ class DBInfo():
             if df_tmp.empty:
                 txt_emp = 'An error occurred when checking for new data. None was'
                 txt_emp += ' encountered'
-                logging.error(txt_emp)    
+                logging.error(txt_emp)
                 exit(1)
             else:
                 # EUPS has only up to pandas 0.15, then I can not use
@@ -782,7 +818,7 @@ class DBInfo():
                 # Need to query every pair pfw_attempt_id-expnum
                 dfpath = pd.DataFrame()
                 for index, row in dfexp.iterrows():
-                    # Here when list of exposures is used, we require NITE 
+                    # Here when list of exposures is used, we require NITE
                     gc.collect()
                     qp = 'select im.nite, im.expnum, im.pfw_attempt_id, fai.path,'
                     qp += '  fai.filename, fai.compression'
@@ -811,7 +847,7 @@ class DBInfo():
                 #
                 #
                 # ==========================================================
-                # Here! and also upside, where there is the other if/elif 
+                # Here! and also upside, where there is the other if/elif
                 #
                 #
                 #
@@ -837,7 +873,7 @@ class DBInfo():
                             # Here the the change of immask filename is done
                             #
                             destin = TT.to_path(parent=parent_immask,
-                                                nite=row['NITE'],                  
+                                                nite=row['NITE'],
                                                 expnum=row['EXPNUM'],
                                                 fnm=aux_fnm,
                                                 reqnum=req,
