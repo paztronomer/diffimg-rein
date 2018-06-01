@@ -358,5 +358,40 @@ def main():
     tno_observations.to_csv(args.fakeobs_outfile, index=False)
 
 
+def main_caller(exp_df=None, fakegen_file=None, fakeobs_outfile=None):
+    """ Method added by F. Paz-Chinchon to be used for importing this code
+    Inputs
+    - exp_df: 
+    - exp_file: path to the file containing the exposure information
+    - fakegen_file: path to the path containing the orbital elements of the 
+    fakes to be generated
+    - fakeobs_outfile: filename to write the generated fake observations to
+    """
+    # Read in the exposures file and perform necessary alterations:
+    #    Select only griz
+    #    Compute the DJD (needed for pyEphem)
+    #    Convert telra and teldec into ephem.Angle() objects
+    exposures = exp_df
+    exposures = exposures[exposures.band.isin(['g','r','i','z'])]
+    exposures['djd_obs'] = exposures.mjd_obs - 15019.5
+    exposures['telra'] = exposures.telra.apply(lambda x: ephem.hours(x).znorm)
+    exposures['teldec'] = exposures.teldec.apply(ephem.degrees)
+
+    # Read in the fake file containing orbital elements and create
+    # ephem.EllipticalBody() objects
+    tno_gen_df = read_file(fakegen_file)
+    tno_fakes = tno_gen_df.apply(create_tno, axis=1).values
+
+    # Determine the TNOs that are nearby an exposure in the list
+    near_lists_keep, tno_fakes_keep = get_objects_to_keep(exposures, tno_fakes)
+
+    # Determine which TNOs will actually fall onto a CCD and therefore be
+    # embedded
+    good_obs = get_good_observations(exposures, tno_fakes_keep, near_lists_keep)
+
+    tno_observations = pd.DataFrame(good_obs)
+    tno_observations.to_csv(fakeobs_outfile, index=False)
+    return True
+
 if __name__ == "__main__":
     main()

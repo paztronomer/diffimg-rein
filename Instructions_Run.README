@@ -13,4 +13,6 @@ just only:
 To run jobsub_submit_dag: must be a newly terminal, with no other constraint
 than:
     - valid proxy
-    - source bash_pycurl
+    - source bash_pycurl. This is not needed is source the setup.sh in
+      diffimg-proc folder
+
