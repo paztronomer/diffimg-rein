@@ -657,6 +657,13 @@ class DBInfo():
             # in the generation of bash files
             #
             #
+            '''
+            HERE!!!
+
+            The below should be contained in another method, just devoted to
+            create the bash scp files
+
+            '''
             # Generation of BASH SCP scripts
             #
             #
@@ -664,7 +671,7 @@ class DBInfo():
             dfpath = pd.DataFrame()
             for index, row in dfexp.iterrows():
                 gc.collect()
-                qp = 'select im.expnum, im.pfw_attempt_id, fai.path,'
+                qp = 'select im.nite, im.expnum, im.pfw_attempt_id, fai.path,'
                 qp += '  fai.filename, fai.compression'
                 qp += '  from image im, file_archive_info fai'
                 qp += '  where '
@@ -678,7 +685,7 @@ class DBInfo():
             #
             # Check/create BASH directory to save scp scripts
             try:
-                parent_scp = os.path.join(parent_scp, self.nite1)
+                parent_scp = os.path.join(parent_scp, aux_naming)
                 os.makedirs(parent_scp)
             except OSError as exception:
                 if (exception.errno != errno.EEXIST):
@@ -709,8 +716,19 @@ class DBInfo():
                         #
                         # Here the the change of immask filename is done
                         #
+                        '''
+
+
+
+                        HERE!! Need to change the way to obtain nite
+
+
+
+
+
+                        '''
                         destin = TT.to_path(parent=parent_immask,
-                                            nite=self.nite1,
+                                            nite=row['NITE'], #self.nite1,
                                             expnum=row['EXPNUM'],
                                             fnm=aux_fnm,
                                             reqnum=req,
@@ -727,8 +745,8 @@ class DBInfo():
                         # Store the immask file entire path
                         self.immask_files.append(destin)
                 # Write out the chunk files to be copied
-                outfnm = 'copy_{0}_{1}t{2}.sh'.format(self.nite1, write_exp[0],
-                                                        write_exp[-1])
+                outfnm = 'copy_{0}_{1}t{2}.sh'.format(aux_naming, write_exp[0],
+                                                      write_exp[-1])
                 outfnm = os.path.join(parent_scp, outfnm)
                 with open(outfnm, 'w+') as f:
                     f.writelines(lineout)
