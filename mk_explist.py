@@ -348,8 +348,8 @@ class DBInfo():
         # 2 cases: nite1, nite2 are input, and the other when expnum_df
         #
         #
-        # HERE! do the query in a more elegant way, for the 2 cases
-        #
+        # HERE! do the query in a more elegant way, for the 2 cases. Loop for
+        # when N > 1000
         #
         if ((self.nite1 is not None) and (self.nite2 is not None)
             and (self.expnum_df is None)):
@@ -717,15 +717,7 @@ class DBInfo():
                         # Here the the change of immask filename is done
                         #
                         '''
-
-
-
                         HERE!! Need to change the way to obtain nite
-
-
-
-
-
                         '''
                         destin = TT.to_path(parent=parent_immask,
                                             nite=row['NITE'], #self.nite1,
@@ -754,171 +746,6 @@ class DBInfo():
                 self.bash_files.append(outfnm)
                 lineout = ['#!/bin/bash \n']
         return True
-        """
-        elif (self.nite1 is None) and (self.expnum_df is not None):
-            dir_depth = 0
-            dfcomp = pd.DataFrame()
-            counter_files = 0
-            for root, dirs, files in os.walk(self.aux_parent_explist):
-                if root.count(os.sep) >= dir_depth:
-                    del dirs[:]
-                for fnm in files:
-                    print fnm
-                    print '====={0}_{1}'.format(self.prefix, self.fnm_expnum)
-                    if ('{0}_{1}'.format(self.prefix, self.fnm_expnum) in fnm):
-                        counter_files += 1
-                        try:
-                            aux_fnm = os.path.join(root, fnm)
-                            tmp = pd.read_csv(aux_fnm, engine='python')
-                            dfcomp = dfcomp.append(tmp)
-                        except:
-                            msg = 'Cannot load {0}'.format(fnm)
-                            logging.error(msg)
-            # If ONLY ONE file exists, then that file is copied to be
-            # a newdata_ file
-            #
-            if (counter_files == 1):
-                newaux = 'newdata_{0}'.format(self.fnm_expnum)
-                newaux += '_{0}.csv'.format(self.hhmmss)
-                newaux = os.path.join(root, newaux)
-                orig = os.path.join(root, fnm)
-                # Copy: explist to newdata
-                shutil.copy2(orig, newaux)
-                logging.info('Saving newdata: {0}'.format(newaux))
-                # copy2 preserves metadata
-                #
-            # Compare dfexp (list of retrieved expnum from the querys) with
-            # dfcomp (all the info in the already saved files) and if there
-            # are new entries, continue. If not, then stop and exit
-            #
-            # There is no need to concatenate [dfexp, dfcomp] because dfexp was
-            # already written on disk, so its already inside dfcomp
-            df_tmp = dfcomp.reset_index(drop=True)
-            t_i = 'Only {0} exposures passed the criteria'.format(len(df_tmp.index))
-            logging.info(t_i)
-            dfcomp = None
-            #
-            if df_tmp.empty:
-                txt_emp = 'An error occurred when checking for new data. None was'
-                txt_emp += ' encountered'
-                logging.error(txt_emp)
-                exit(1)
-            else:
-                # EUPS has only up to pandas 0.15, then I can not use
-                # drop_duplicates with keep=False
-                # Therefore, use a new method
-                counter = collections.Counter(df_tmp['EXPNUM'].values)
-                uni_exp = np.unique(df_tmp['EXPNUM'].values)
-                new_exp = []
-                for e in uni_exp:
-                    if (counter[e] == 1):
-                        new_exp.append(e)
-                if (len(new_exp) > 0):
-                    # Replace dataframe by the one containing only new entries
-                    dfexp = None
-                    dfexp = df_tmp[df_tmp.EXPNUM.isin(new_exp)]
-                    dfexp = dfexp.reset_index(drop=True)
-                    # Save this because is containing ONLY new data
-                    # The first table to be saved was about 35 lines above
-                    newdt = 'newdata_{0}_{1}.csv'.format(self.fnm_expnum, self.hhmmss)
-                    newdt = os.path.join(self.aux_parent_explist, newdt)
-                    dfexp.to_csv(newdt, index=False, header=True)
-                    logging.info('Saving newdata: {0}'.format(newdt))
-                else:
-                    dfexp = None
-                    msg_nonew = 'No new exposures at this time, compared with'
-                    msg_nonew += ' previous queries. Exiting'
-                    print 'No new data. Exiting!'
-                    logging.warning(msg_nonew)
-                    exit(0)
-                    # Keep the above exit(0)
-                # The above allows us to get the unique elements and thus use them
-                # in the generation of bash files
-                #
-                # Need to query every pair pfw_attempt_id-expnum
-                dfpath = pd.DataFrame()
-                for index, row in dfexp.iterrows():
-                    # Here when list of exposures is used, we require NITE
-                    gc.collect()
-                    qp = 'select im.nite, im.expnum, im.pfw_attempt_id, fai.path,'
-                    qp += '  fai.filename, fai.compression'
-                    qp += '  from image im, file_archive_info fai'
-                    qp += '  where '
-                    qp += 'im.pfw_attempt_id={0}'.format(row['PFW_ATTEMPT_ID'])
-                    qp += '  and im.filetype=\'red_immask\''
-                    qp += '  and im.expnum={0}'.format(row['EXPNUM'])
-                    qp += '  and fai.filename=im.filename'
-                    qp += '  order by fai.filename'
-                    dfaux = TT.db_query(qp)
-                    dfpath = dfpath.append(dfaux)
-                #
-                # Check/create BASH directory to save scp scripts
-                try:
-                    parent_scp = os.path.join(parent_scp, self.fnm_expnum)
-                    os.makedirs(parent_scp)
-                except OSError as exception:
-                    if (exception.errno != errno.EEXIST):
-                        raise
-                        logging.error('ERROR when creating {0}'.format(parent_scp))
-                # Write bash SCP in packs of N exposures each. chunk_N() returns a
-                # list of tuples
-                expnum = dfexp['EXPNUM'].values
-                Nexp = map(np.array, TT.chunk_N(expnum, size_copy))
-                #
-                #
-                # ==========================================================
-                # Here! and also upside, where there is the other if/elif
-                #
-                #
-                #
-                lineout = ['#!/bin/bash \n']
-                str0 = 'scp'
-                str0 += ' {0}@deslogin.cosmology.illinois.edu:'.format(desdm_user)
-                for write_exp in Nexp:
-                    # Remove the filling NaN
-                    write_exp = write_exp[np.logical_not(np.isnan(write_exp))]
-                    # Account for possible float
-                    write_exp = np.array(map(int, write_exp))
-                    for idx, row in dfpath.iterrows():
-                        if (row['EXPNUM'] in write_exp):
-                            cond = (
-                                (dfexp['EXPNUM'] == row['EXPNUM']) &
-                                (dfexp['PFW_ATTEMPT_ID'] == row['PFW_ATTEMPT_ID'])
-                            )
-                            # Pending: check for unique req, att
-                            req = dfexp.loc[cond, 'REQNUM'].values[0]
-                            att = dfexp.loc[cond, 'ATTNUM'].values[0]
-                            aux_fnm = row['FILENAME'] + row['COMPRESSION']
-                            #
-                            # Here the the change of immask filename is done
-                            #
-                            destin = TT.to_path(parent=parent_immask,
-                                                nite=row['NITE'],
-                                                expnum=row['EXPNUM'],
-                                                fnm=aux_fnm,
-                                                reqnum=req,
-                                                attnum=att,
-                                                modify_fnm=True,
-                                                str_run=self.rNpN)
-                            argu = [root_path, row['PATH'], row['FILENAME']]
-                            tmp = str0
-                            tmp += os.path.join(*argu)
-                            tmp += row['COMPRESSION'] + ' '
-                            tmp += destin
-                            tmp += '\n'
-                            lineout.append(tmp)
-                            # Store the immask file entire path
-                            self.immask_files.append(destin)
-                    # Write out the chunk files to be copied
-                    outfnm = 'copy_{0}_{1}t{2}.sh'.format(self.fnm_expnum, write_exp[0],
-                                                            write_exp[-1])
-                    outfnm = os.path.join(parent_scp, outfnm)
-                    with open(outfnm, 'w+') as f:
-                        f.writelines(lineout)
-                    logging.info('\twritten bash file {0}'.format(outfnm))
-                    self.bash_files.append(outfnm)
-                    lineout = ['#!/bin/bash \n']
-            """
 
     def run_scp(self):
         ''' Method to run the created bash files for remote copy
@@ -987,7 +814,10 @@ if __name__ == '__main__':
     txt5 += ' Default: {0}'.format(Nmax)
     abc.add_argument('--N', help=txt5, metavar='', default=Nmax, type=int)
     #
-    user_aux = os.getlogin()
+    # Reverse to os.getlogin()!
+    #
+    # user_aux = os.getlogin()
+    user_aux = 'fpazch'
     txt6 = 'Username to be employed for connect to DESDM.'
     txt6 += ' Default: actual username, {0}'.format(user_aux)
     abc.add_argument('--user', help=txt6, metavar='', default=user_aux)
@@ -1063,7 +893,11 @@ if __name__ == '__main__':
         DB.run_scp()
     # Save a plain text list of the copied files, to be used in case the
     # sumbission fails and we need to only run query/scp again.
-    backup_list = 'immaskFiles_{0}_{1}.txt'.format(DB.nite1, DB.hhmmss)
+    if (DB.nite1 is None):
+        aux_nm = DB.fnm_expnum
+    else:
+        aux_nm = DB.nite1
+    backup_list = 'immaskFiles_{0}_{1}.txt'.format(aux_nm, DB.hhmmss)
     # Add a safe step here
     try:
         backup_list = os.path.join(DB.dir_log, backup_list)
