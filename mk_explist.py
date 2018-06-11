@@ -9,6 +9,7 @@ Francisco Paz-Chinchon
 
 import os
 import sys
+import stat
 import shutil
 import socket
 import datetime
@@ -112,12 +113,23 @@ class Toolbox():
                 exit(1)
         # Check if directory exists, if not, then create it
         folder = os.path.join(parent, '{0}/{1}'.format(nite, expnum))
-        try:
-            os.makedirs(folder)
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
-                logging.error('ERROR when creating {0}'.format(folder))
+        if os.path.exists(folder):
+            # If path exists, force the folder to have the permissions we need
+            try:
+                # Iteratively add the permissions, equivalent to chmod 774
+                os.chmod(folder, stat.S_IRWXU)
+                os.chmod(folder, stat.S_IRWXG)
+                os.chmod(folder, stat.S_IROTH)
+            except:
+                e = sys.exc_info()[0]
+                logging.error(e)
+        else:
+            try:
+                os.makedirs(folder)
+            except OSError as exception:
+                if exception.errno != errno.EEXIST:
+                    raise
+                    logging.error('ERROR when creating {0}'.format(folder))
         # Output the string with the final filename
         return os.path.join(folder, fnm)
 
