@@ -762,6 +762,12 @@ class DBInfo():
     def run_scp(self):
         ''' Method to run the created bash files for remote copy
         '''
+        #
+        # HERE
+        # Issue, there is no checking if the copy was successfully completed.
+        # Already occurred that the copy was not completed because has no
+        # needed privileges, and no error was triggered.
+        #
         Tbox = Toolbox()
         if (len(self.bash_files) > 0):
             for sh in self.bash_files:
