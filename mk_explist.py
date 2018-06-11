@@ -60,7 +60,8 @@ class Toolbox():
         return (relroot, filename)
 
     def to_path(self, parent=None, nite=None, expnum=None, reqnum=None,
-                attnum=None, fnm=None, modify_fnm=False, str_run=None):
+                attnum=None, fnm=None, modify_fnm=False, str_run=None,
+                rwx_mode=774):
         ''' Method to check for the existence of the destination folder, and
         to modify the filename used for save files
         Inputs
@@ -116,10 +117,9 @@ class Toolbox():
         if os.path.exists(folder):
             # If path exists, force the folder to have the permissions we need
             try:
-                # Iteratively add the permissions, equivalent to chmod 774
-                os.chmod(folder, stat.S_IRWXU)
-                os.chmod(folder, stat.S_IRWXG)
-                os.chmod(folder, stat.S_IROTH)
+                # Equivalent to chmod 774
+                cmd = 'chmod {0} {1}'.format(rwx_mode, folder)
+                subprocess.call(shlex.split(cmd))
             except:
                 e = sys.exc_info()[0]
                 logging.error(e)
