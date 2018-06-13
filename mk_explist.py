@@ -114,12 +114,21 @@ class Toolbox():
                 exit(1)
         # Check if directory exists, if not, then create it
         folder = os.path.join(parent, '{0}/{1}'.format(nite, expnum))
-        if os.path.exists(folder):
+        # If directory has rwx permissions, do nothing. If doesn't have 
+        # permissions, try change them
+        if (os.path.exists(folder) and not os.access(folder, os.R_OK)
+            and not os.access(folder, os.W_OK) 
+            and not os.access(folder, os.X_OK)):
             # If path exists, force the folder to have the permissions we need
             try:
-                # Equivalent to chmod 774
+                # chmod 774
                 cmd = 'chmod {0} {1}'.format(rwx_mode, folder)
-                subprocess.call(shlex.split(cmd))
+                #subprocess.call(shlex.split(cmd))
+                pA = subprocess.Popen(shlex,split(cmd), stderr=subprocess.PIPE)
+                err = pA.communicate()
+                if err:
+                    logging.error(err)
+                    logging.error(pA.returncode)
             except:
                 e = sys.exc_info()[0]
                 logging.error(e)
@@ -176,6 +185,8 @@ class Toolbox():
             except:
                 t_e = 'Error in querying\n\n\t{0}\n\n'.format(to_query)
                 logging.error(t_e)
+                e = sys.exc_info()[0]
+                logging.error(e)
                 exit(1)
             connect.close()
             return df_obj
@@ -194,6 +205,11 @@ class Toolbox():
             rows = cursor.fetchall()
             #
             # change to pandas! is easier for collabs
+            #
+            t_w = 'DESDBI Not implemented!'
+            logging.warning(t_w)
+            #
+            #
             #
             exit(0)
             outtab = np.rec.array(rows, dtype=zip(cols, outdtype))
@@ -336,7 +352,7 @@ class DBInfo():
         logging.info('Script: {0}\n'.format(os.path.basename(__file__)))
 
     def exp_info(self, minEXPTIME=None, minTEFF_g=None, minTEFF_riz=None,
-                 parent_explist=None, outnm=None):
+                 parent_explist=None, outnm=None, query_len=100):
         ''' Method to get information from the exposure, related to assessments
         from the firstcut processing and from the initial values coming from
         the telescope.
@@ -352,10 +368,44 @@ class DBInfo():
         Returns
         - the constructed dataframe
         '''
+        Tbox = Toolbox()
         minEXPTIME = self.exptime
         minTEFF_g = self.teff_g
         minTEFF_riz = self.teff_riz
         parent_explist = self.dir_exp
+        # Auxiliary function to write query for given exposures
+        def query_exp(exp, test):
+            exp = ','.join(map(str, exp))
+            qi = 'with z as ('
+            qi += '  select fcut.expnum,'
+            qi += '  max(fcut.lastchanged_time) as evaltime'
+            qi += '  from firstcut_eval fcut'
+            qi += '  where fcut.analyst!=\'SNQUALITY\''
+            qi += '  group by fcut.expnum'
+            qi += '  )'
+            qi += '  select e.expnum, e.nite, e.airmass, e.obstype,'
+            qi += '  e.date_obs,'
+            qi += '  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg,'
+            qi += '  e.band,'
+            qi += '  e.exptime, val.pfw_attempt_id,'
+            qi += '  att.reqnum, att.attnum,'
+            qi += '  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness'
+            qi += '  from z, exposure e, firstcut_eval fcut,'
+            qi += '  pfw_attempt_val val, pfw_attempt att'
+            qi += '  where e.obstype=\'object\''
+            qi += '  and e.expnum in ({0})'.format(exp)
+            qi += '  and fcut.expnum=z.expnum'
+            qi += '  and fcut.expnum=e.expnum'
+            qi += '  and fcut.lastchanged_time=z.evaltime'
+            qi += '  and fcut.processed=\'True\''
+            qi += '  and val.key=\'expnum\''
+            qi += '  and to_number(val.val,\'999999\')=e.expnum'
+            qi += '  and val.pfw_attempt_id=fcut.pfw_attempt_id'
+            qi += '  and att.id=val.pfw_attempt_id'
+            if test:
+                qi += '  and rownum<6'
+            qi += '  order by e.nite'
+            return qi
         # Define the query which assumes last try to process as the valid
         # 2 cases: nite1, nite2 are input, and the other when expnum_df
         #
@@ -385,7 +435,8 @@ class DBInfo():
             qi += '  and e.nite between'
             qi += ' {0} and {1}'.format(int(self.nite1), int(self.nite2))
             if not (self.ra_range is None):
-                qi += ' and e.radeg between {0} and {1}'.format(*self.ra_range)
+                qi += ' and e.radeg between'
+                qi += ' {0} and {1}'.format(*self.ra_range)
             if not (self.dec_range is None):
                 qi += ' and e.decdeg between'
                 qi += ' {0} and {1}'.format(*self.dec_range)
@@ -402,75 +453,63 @@ class DBInfo():
             if self.testing:
                 qi += '  and rownum<6'
             qi += '  order by e.nite'
+            df0 = T.db_query(qi)
         elif ((self.expnum_df is not None) and (self.nite1 is None)
               and (self.nite2 is None)):
             t_w = 'For the list of EXPNUM, RA and DEC constraints will not be'
             t_w += ' applied. Neither minimum EXPTIME, nor ACCEPTED,'
             t_w += ' nor PROGRAM'
             logging.warning(t_w)
-            if (len(self.expnum_df.index) >= 1000):
-               # Do a loop, concatenate resulting dataframes
-               logging.error('NOT IMPLEMENTED FOR N>= 1000')
-               exit(1)
+            # If number of exposures is larger than 100, split in small pieces
+            if (len(self.expnum_df.index) >= query_len):
+                # Produce a list of arrays
+                Nx = int(np.ceil(len(self.expnum_df.index) / float(query_len)))
+                listN = np.array_split(self.expnum_df['EXPNUM'].values, Nx)
+                # Query each set
+                for idx, x in enumerate(listN):
+                    qn = query_exp(x, self.testing)
+                    if (idx == 0):
+                        df0 = Tbox.db_query(qn)
+                    df0 = pd.concat([df0, Tbox.db_query(qn)])
+                df0.reset_index(drop=True, inplace=True)
             else:
-                auxls = ','.join(map(str, self.expnum_df['EXPNUM'].values))
-                qi = 'with z as ('
-                qi += '  select fcut.expnum,'
-                qi += '  max(fcut.lastchanged_time) as evaltime'
-                qi += '  from firstcut_eval fcut'
-                qi += '  where fcut.analyst!=\'SNQUALITY\''
-                qi += '  group by fcut.expnum'
-                qi += '  )'
-                qi += '  select e.expnum, e.nite, e.airmass, e.obstype,'
-                qi += '  e.date_obs,'
-                qi += '  e.mjd_obs, e.telra, e.teldec, e.radeg, e.decdeg,'
-                qi += '  e.band,'
-                qi += '  e.exptime, val.pfw_attempt_id,'
-                qi += '  att.reqnum, att.attnum,'
-                qi += '  fcut.fwhm_asec, fcut.t_eff, fcut.skybrightness'
-                qi += '  from z, exposure e, firstcut_eval fcut,'
-                qi += '  pfw_attempt_val val, pfw_attempt att'
-                qi += '  where e.obstype=\'object\''
-                qi += '  and e.expnum in ({0})'.format(auxls)
-                qi += '  and fcut.expnum=z.expnum'
-                qi += '  and fcut.expnum=e.expnum'
-                qi += '  and fcut.lastchanged_time=z.evaltime'
-                qi += '  and fcut.processed=\'True\''
-                qi += '  and val.key=\'expnum\''
-                qi += '  and to_number(val.val,\'999999\')=e.expnum'
-                qi += '  and val.pfw_attempt_id=fcut.pfw_attempt_id'
-                qi += '  and att.id=val.pfw_attempt_id'
-                if self.testing:
-                    qi += '  and rownum<6'
-                qi += '  order by e.nite'
+                qj = query_exp(self.expnum_df['EXPNUM'].values, self.testing)
+                df0 = Tbox.db_query(qj)
         #
-        T = Toolbox()
-        df0 = T.db_query(qi)
         if (len(df0.index) == 0):
             noexp = '\tNo exposures were found for nite={0}'.format(self.nite1)
             noexp += '\n\tExiting\n{0}'.format('='*80)
             logging.warning(noexp)
             exit(0)
-        if ((self.nite1 is not None) and (self.nite2 is not None)
-            and (self.expnum_df is None)):
-            # Add a T_EFF condition for g>=0.2 and r,i,z>=0.3
-            c1 = (df0['BAND'] == 'g') & (df0['T_EFF'] < minTEFF_g)
-            if np.any(c1.values):
-                df0.drop(c1, inplace=True)
-            for b in ['r', 'i', 'z']:
-                cx = (df0['BAND'] == b) & (df0['T_EFF'] < minTEFF_riz)
-                if np.any(cx.values):
-                    df0.drop(cx, inplace=True)
-        elif ((self.expnum_df is not None) and (self.nite1 is None)
-              and (self.nite2 is None)):
-            t_w = 'For the list of EXPNUM, no cut on T_EFF will be performed'
-            logging.warning(t_w)
+        # T_EFF condition for g>=min_teff_g and r,i,z>=min_teff_riz
+        # g-band condition
+        c1 = (df0['BAND'] == 'g') & (df0['T_EFF'] < minTEFF_g)
+        if np.any(c1.values):
+            df0.drop(df0[c1].index, inplace=True)
+        for b in ['r', 'i', 'z']:
+            cx = (df0['BAND'] == b) & (df0['T_EFF'] < minTEFF_riz)
+            if np.any(cx.values):
+                df0.drop(df0[cx].index, inplace=True)
+        # if ((self.nite1 is not None) and (self.nite2 is not None)
+        #     and (self.expnum_df is None)):
+        #     # T_EFF condition for g>=min_teff_g and r,i,z>=min_teff_riz
+        #     c1 = (df0['BAND'] == 'g') & (df0['T_EFF'] < minTEFF_g)
+        #     if np.any(c1.values):
+        #         df0.drop(c1, inplace=True)
+        #     for b in ['r', 'i', 'z']:
+        #         cx = (df0['BAND'] == b) & (df0['T_EFF'] < minTEFF_riz)
+        #         if np.any(cx.values):
+        #             df0.drop(cx, inplace=True)
+        # elif ((self.expnum_df is not None) and (self.nite1 is None)
+        #       and (self.nite2 is None)):
+        #     t_w = 'For the list of EXPNUM, no cut on T_EFF will be performed'
+        #     logging.warning(t_w)
         t_i = 'In case T_EFF is NaN, EXPNUM will be removed'
         logging.info(t_i)
         # Drop rows where T_EFF is NaN
         df0.dropna(axis=0, subset=['T_EFF'], inplace=True)
         # Add a new column with a more precise MJD value
-        mjd_aux = map(T.isot2mjd, df0['DATE_OBS'])
+        mjd_aux = map(Tbox.isot2mjd, df0['DATE_OBS'])
         # Pandas assign appeared on version 0.16
         if (float(str(pd.__version__)[:4]) >= 0.16):
             df0 = df0.assign(MJD_OBS_ADD=mjd_aux)
@@ -502,7 +541,8 @@ class DBInfo():
             # Write out the table, one slightly different filename for each
             # time we query the DB
             # The condition for prefix=None is now on the __init__
-            aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.nite1, self.hhmmss)
+            aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.nite1, 
+                                              self.hhmmss)
         elif ((self.expnum_df is not None) and (self.nite1 is None)
               and (self.nite2 is None)):
             try:
@@ -518,7 +558,8 @@ class DBInfo():
             # Write out the table, one slightly different filename for each
             # time we query the DB
             # The condition for prefix=None is now on the __init__
-            aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.fnm_expnum, self.hhmmss)
+            aux_out= '{0}_{1}_{2}.csv'.format(self.prefix, self.fnm_expnum, 
+                                              self.hhmmss)
         #
         # Double check here past:  os.path.join(parent_explist, outnm)
         #
@@ -693,7 +734,18 @@ class DBInfo():
                 qp += '  and fai.filename=im.filename'
                 qp += '  order by fai.filename'
                 dfaux = TT.db_query(qp)
-                dfpath = dfpath.append(dfaux)
+                if (len(dfaux.index) > 0):
+                    dfpath = dfpath.append(dfaux)
+                else:
+                    t_w = 'Missing immask file,'
+                    t_w += ' from EXPNUM={0}, with'.format(row['EXPNUM'])
+                    t_w += ' PFW_ATTEMPT={0}'.format(row['PFW_ATTEMPT_ID'])
+                    logging.warning(t_w)
+            # Check if the result is empty or not
+            if (dfpath.empty):
+                t_e = 'No immask files were found. Exiting'
+                logging.error(t_e)
+                exit(1)
             #
             # Check/create BASH directory to save scp scripts
             try:
@@ -745,6 +797,11 @@ class DBInfo():
                         tmp += row['COMPRESSION'] + ' '
                         tmp += destin
                         tmp += '\n'
+                        # Before write out the linr on the bash, check if
+                        # file already exists. If true, then save the line,
+                        # but commented
+                        if os.path.exists(destin):
+                            tmp = '#' + tmp
                         lineout.append(tmp)
                         # Store the immask file entire path
                         self.immask_files.append(destin)
@@ -754,13 +811,16 @@ class DBInfo():
                 outfnm = os.path.join(parent_scp, outfnm)
                 with open(outfnm, 'w+') as f:
                     f.writelines(lineout)
-                logging.info('\twritten bash file {0}'.format(outfnm))
+                logging.info('written bash file {0}'.format(outfnm))
                 self.bash_files.append(outfnm)
+                # Refresh lineout variable for the next iteration
                 lineout = ['#!/bin/bash \n']
         return True
 
     def run_scp(self):
         ''' Method to run the created bash files for remote copy
+        This method should not have an exit statement, and if fails should
+        be able to record the failure on a file
         '''
         #
         # HERE
@@ -771,21 +831,31 @@ class DBInfo():
         Tbox = Toolbox()
         if (len(self.bash_files) > 0):
             for sh in self.bash_files:
-                # Make the file executable
-                root_path, fname= Tbox.split_path(sh)
-                cmd = 'chmod +x {0}'.format(sh)
-                pA = subprocess.call(shlex.split(cmd))
-                # Run the bash file
-                cmdscp = shlex.split('bash {0}'.format(sh))
-                pB = subprocess.Popen(cmdscp,
-                                      shell=False,
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE,
-                                      universal_newlines=True)
-                # outM, errM = pB.communicate()
-                pB.wait()
-                logging.info('Ended run of {0}'.format(fname))
+                try:
+                    # Make the file executable
+                    root_path, fname= Tbox.split_path(sh)
+                    cmd = 'chmod +x {0}'.format(sh)
+                    pA = subprocess.call(shlex.split(cmd))
+                except:
+                    t_e = sys.exc_info()[0]
+                    logging.error(t_e)
+                try:
+                    # Run the bash file
+                    cmdscp = shlex.split('bash {0}'.format(sh))
+                    # stdout=subprocess.PIPE,
+                    # stdin=subprocess.PIPE,
+                    pB = subprocess.Popen(cmdscp,
+                                          shell=False,
+                                          stderr=subprocess.PIPE,
+                                          universal_newlines=True)
+                    errM = pB.communicate()
+                    pB.wait()
+                    if errM[1]:
+                        logging.error(errM[1])
+                    logging.info('Ended run of {0}'.format(fname))
+                except:
+                    t_e = sys.exc_info()[0]
+                    logging.error(t_e)
         return True
 
 
@@ -903,6 +973,9 @@ if __name__ == '__main__':
     DB = DBInfo(**kw)
     #Setup log
     DB.setup_log()
+    t_i = 'Input parameters: {0}'.format(val)
+    logging.info(t_i)
+    #
     # Make queries, save tables and files
     ended_ok = DB.exp_mask()
     # Remote copy
@@ -930,4 +1003,4 @@ if __name__ == '__main__':
         with open(backup_list, 'w+') as b:
             for im in DB.immask_files:
                 b.write('{0}\n'.format(im))
-    logging.info('Backup file saved on cwd: {0}'.format(backup_list))
+    logging.info('Backup file saved: {0}'.format(backup_list))
