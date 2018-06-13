@@ -809,9 +809,9 @@ class DBInfo():
                 n_disk = [x[0] for x in lineout]
                 n_disk = n_disk.count('#') - 1
                 if (n_disk > 0):
-                    comment_n = '# ' + '=' * 78
-                    comment_n += '# ' + '=' * 78
-                    comment_n += '# ' + '=' * 78
+                    comment_n = '# ' + '=' * 78 + '\n'
+                    comment_n += '# ' + '=' * 78 + '\n'
+                    comment_n += '# ' + '=' * 78 + '\n'
                     comment_n += '# Note: {0} files are'.format(n_disk)
                     comment_n += ' already of disk, from a total of'
                     comment_n += ' {0}'.format(len(lineout) - 1)
