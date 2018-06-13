@@ -652,7 +652,7 @@ class DBInfo():
         # There is no need to concatenate [dfexp, dfcomp] because dfexp was
         # already written on disk, so it is already contained inside dfcomp
         df_tmp = dfcomp.reset_index(drop=True)
-        t_i = 'Only {0} exposures passed the criteria'.format(len(df_tmp.index))
+        t_i = 'Only {0} exposures appears as new'.format(len(df_tmp.index))
         logging.info(t_i)
         dfcomp = None
         #
