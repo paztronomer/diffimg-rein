@@ -801,10 +801,21 @@ class DBInfo():
                         # file already exists. If true, then save the line,
                         # but commented
                         if os.path.exists(destin):
-                            tmp = '#' + tmp
+                            tmp = '# ' + tmp
                         lineout.append(tmp)
                         # Store the immask file entire path
                         self.immask_files.append(destin)
+                # How many are already on disk?
+                n_disk = [x[0] for x in lineout]
+                n_disk = n_disk.count('#') - 1
+                if (n_disk > 0):
+                    comment_n = '# ' + '=' * 78
+                    comment_n += '# ' + '=' * 78
+                    comment_n += '# ' + '=' * 78
+                    comment_n += '# Note: {0} files are'.format(n_disk)
+                    comment_n += ' already of disk, from a total of'
+                    comment_n += ' {0}'.format(len(lineout) - 1)
+                    lineout.append(comment_n)
                 # Write out the chunk files to be copied
                 outfnm = 'copy_{0}_{1}t{2}.sh'.format(aux_naming, write_exp[0],
                                                       write_exp[-1])
